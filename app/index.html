@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kleitikon</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+      .card { max-width: 720px; padding: 1.5rem; border: 1px solid #ddd; border-radius: 8px; }
+      label { display: block; margin-top: 1rem; }
+      input { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
+      button { margin-top: 1rem; padding: 0.5rem 1rem; }
+      pre { background: #f6f6f6; padding: 1rem; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Kleitikon</h1>
+      <p>Solid login and Pod bootstrap (Phase 1).</p>
+      <div id="status">Not logged in.</div>
+
+      <label>
+        WebID (optional)
+        <input id="webid" type="text" placeholder="https://user.example/profile#me" />
+      </label>
+
+      <label>
+        OIDC Issuer (required)
+        <input id="issuer" type="text" placeholder="https://solidcommunity.net" />
+      </label>
+
+      <button id="login">Log in with Solid</button>
+      <button id="logout" disabled>Log out</button>
+
+      <h3>Pod bootstrap</h3>
+      <button id="bootstrap" disabled>Create /kleitikon/ containers</button>
+      <pre id="log"></pre>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
