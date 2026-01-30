@@ -82,6 +82,7 @@ class ControlPlane:
         nonce: str,
         timestamp: int,
         webid: str,
+        policies: list[dict] | None = None,
         now: datetime | None = None,
     ) -> tuple[Token, ReceiptPayload]:
         """Redeem a permission ticket.
@@ -137,18 +138,49 @@ class ControlPlane:
         redeem_ticket(ticket_id, rp_pubkey, now)
         ticket_info["redeemed"] = True
 
-        # Policy Check (Minimal MVP: Default Allow)
-        # In production: fetch policy from Pod using ticket_info context or RP keys
-        # If policy not found -> Deny (or Allow for this demo)
-        # Here we Default Allow to enable the demo flow without setting up policies first.
-        permissions = {("channel.bootstrap", f"rs:{aud}")}
-        
-        # Issue token with permissions
+        # Policy Check (Phase 11 Production Spec)
+        # We iterate through policies provided by the client (fetched from Pod)
+        # and check if any allow this RP/aud combination.
+        valid_policy = False
+        allowed_actions = set()
+
+        provided_policies = policies or []
+        print(f"CP: Validating against {len(provided_policies)} policies")
+        for p in provided_policies:
+            print(f"Checking policy: {p}")
+            try:
+                # Check if policy applies to this device
+                applies = False
+                applies_to = p.get("applies_to", {})
+                if applies_to.get("all_devices"):
+                    applies = True
+                elif applies_to.get("device_id") == rp_pubkey:
+                    applies = True
+                
+                if not applies:
+                    continue
+
+                # Check if policy permits this action/resource
+                for perm in p.get("permits", []):
+                    action = perm.get("action")
+                    resource = perm.get("resource")
+                    
+                    # Wildcard or exact match
+                    if action == "channel.bootstrap" and (resource == "*" or resource == aud or resource == f"rs:{aud}"):
+                        valid_policy = True
+                        allowed_actions.add((action, f"rs:{aud}"))
+            except Exception as e:
+                print(f"Error parsing policy: {e}")
+
+        if not valid_policy:
+            raise ValueError("No matching policy found in Pod for this device/resource")
+
+        # Issue token with permissions from policies
         exp = now + timedelta(seconds=self.token_ttl_seconds)
-        caveats: list[Caveat] = []  # TODO: add caveats from policy
+        caveats: list[Caveat] = [] 
 
         token = issue_token(
-            permissions=permissions,
+            permissions=allowed_actions,
             exp=exp,
             aud=aud,
             caveats=caveats,
@@ -163,7 +195,7 @@ class ControlPlane:
         receipt = ReceiptPayload(
             receipt_id=receipt_id,
             who_webid=webid,
-            what=[{"action": a, "resource": r} for a, r in sorted(permissions)],
+            what=[{"action": a, "resource": r} for a, r in sorted(allowed_actions)],
             issued_at=int(now.timestamp()),
             expires_at=int(exp.timestamp()),
             token_id=f"sha256:{token_id_hash}",

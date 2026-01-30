@@ -4,163 +4,340 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kleitikon</title>
+  <title>Kleitikon | Trusted Access</title>
   <meta name="description" content="Solid-based device pairing and connection authorization" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap"
+    rel="stylesheet">
   <style>
     :root {
-      --bg: #f8f9fa;
-      --card-bg: #fff;
-      --border: #e0e0e0;
-      --primary: #0066cc;
-      --text: #212529;
-      --muted: #6c757d;
+      /* Nord Palette */
+      --bg: #2e3440;
+      --surface: #3b4252;
+      --surface-border: #4c566a;
+      --primary: #88c0d0;
+      --primary-hover: #81a1c1;
+      --accent: #88c0d0;
+      --text: #eceff4;
+      --text-muted: #d8dee9;
+      --success: #a3be8c;
+      --error: #bf616a;
+      --warning: #ebcb8b;
+      --orange: #d08770;
+      --radius: 12px;
+      --font-body: 'Inter', sans-serif;
+      --font-heading: 'Outfit', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
     }
 
     body {
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      font-family: var(--font-body);
       margin: 0;
-      padding: 2rem;
+      padding: 1rem;
       background: var(--bg);
+      background-image:
+        radial-gradient(circle at 10% 10%, rgba(136, 192, 208, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 90% 90%, rgba(129, 161, 193, 0.05) 0%, transparent 50%);
       color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 540px;
     }
 
     .card {
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 1.5rem;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius);
+      padding: 2.5rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
     }
 
     h1 {
-      margin-top: 0;
+      font-family: var(--font-heading);
+      font-size: 2.25rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem 0;
+      background: linear-gradient(135deg, #fff 40%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      opacity: 0.8;
+      font-size: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #2e3440;
+      padding: 0.5rem 1rem;
+      border-radius: 99px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--surface-border);
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--surface-border);
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.active {
+      background: var(--success);
+      box-shadow: 0 0 10px var(--success), 0 0 20px rgba(163, 190, 140, 0.2);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.error {
+      background: var(--error);
+      box-shadow: 0 0 10px var(--error);
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .input-group {
+      margin-bottom: 1.5rem;
     }
 
     label {
       display: block;
-      margin-top: 1rem;
-      color: var(--muted);
-      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     input {
       width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.25rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 1rem;
-      box-sizing: border-box;
+      padding: 0.75rem 1rem;
+      background: #2e3440;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9375rem;
+      transition: all 0.2s ease;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(136, 192, 208, 0.2);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
     }
 
     button {
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
+      flex: 1;
+      padding: 0.75rem 1.25rem;
       border: none;
-      border-radius: 4px;
-      background: var(--primary);
-      color: #fff;
-      font-size: 0.95rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
       cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #2e3440;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #81a1c1;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #4c566a;
+      color: var(--text);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #5e81ac;
     }
 
     button:disabled {
-      background: #ccc;
+      opacity: 0.4;
       cursor: not-allowed;
     }
 
-    button+button {
-      margin-left: 0.5rem;
-    }
-
-    pre {
-      background: #f1f1f1;
-      padding: 1rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      overflow-x: auto;
-      max-height: 200px;
-    }
-
-    #status {
-      margin: 1rem 0;
-      font-weight: 500;
-    }
-
-    #webIdDisplay {
-      font-size: 0.85rem;
-      color: var(--muted);
-      word-break: break-all;
-      display: none;
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--orange);
+      margin: 2.5rem 0 1rem 0;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--surface-border);
     }
 
     #podInfo {
-      margin-top: 1rem;
+      background: rgba(163, 190, 140, 0.05);
+      border: 1px solid rgba(163, 190, 140, 0.15);
+      border-radius: 8px;
       padding: 1rem;
-      background: #e8f5e9;
-      border-radius: 6px;
-      display: none;
+      margin: 1.5rem 0;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
     }
 
-    #podInfo a {
-      color: var(--primary);
+    #podInfo strong {
+      color: var(--success);
+    }
+
+    pre {
+      background: #242933;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'ui-monospace', monospace;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      color: #88c0d0;
+      overflow-y: auto;
+      max-height: 180px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     .hint {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-top: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 0.5rem;
+      }
+
+      .card {
+        padding: 1.5rem;
+      }
+
+      .btn-row {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
     }
   </style>
 </head>
 
 <body>
-  <div class="card">
-    <h1>Kleitikon</h1>
-    <p>Solid-based device pairing and connection authorization.</p>
+  <div class="container">
+    <div class="card">
+      <h1>Kleitikon</h1>
+      <p class="subtitle">Trusted connection authorization.</p>
 
-    <div id="status">Not logged in.</div>
-    <div id="webIdDisplay"></div>
+      <div class="status-badge">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="status">Ready</span>
+      </div>
 
-    <label>
-      OIDC Issuer (IdP URL)
-      <input id="issuer" type="text" value="http://localhost:3200/" placeholder="http://localhost:3200/" />
-    </label>
-    <p class="hint">Primary: enter your Solid OIDC issuer (e.g., http://localhost:3200/).</p>
+      <div id="webIdDisplay" class="subtitle" style="font-size: 0.75rem; margin-top: -1rem;"></div>
 
-    <button id="login">Log in with Solid</button>
-    <button id="logout" disabled>Log out</button>
+      <div class="input-group">
+        <label for="issuer">OIDC Issuer (Solid IdP)</label>
+        <input id="issuer" type="text" value="http://localhost:3200/" placeholder="http://localhost:3200/" />
+        <p class="hint">Your Pod provider's URL.</p>
+      </div>
 
-    <h3>Pod Bootstrap</h3>
-    <button id="bootstrap" disabled>Create /kleitikon/ containers</button>
+      <div class="btn-row">
+        <button id="login" class="btn-primary">Connect Pod</button>
+        <button id="logout" class="btn-secondary" disabled>Disconnect</button>
+      </div>
 
-    <div id="podInfo">
-      <strong>Pod initialized</strong>
-      <p>Storage root: <span id="podRoot"></span></p>
-      <p>
-        <a id="configLink" href="#" target="_blank">config.jsonld</a> |
-        <a id="devicesLink" href="#" target="_blank">devices/index.jsonld</a>
-      </p>
+      <div class="section-title">Setup</div>
+      <div class="btn-row">
+        <button id="bootstrap" class="btn-secondary" disabled>Init Containers</button>
+        <button id="register" class="btn-secondary" disabled>Register Device</button>
+      </div>
+
+      <div id="podInfo">
+        <strong>✓ Initialized</strong>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.75rem; opacity: 0.8;">Root: <span id="podRoot"></span></p>
+        <div style="margin-top: 0.5rem; display: flex; gap: 1rem;">
+          <a id="configLink" href="#" target="_blank"
+            style="color: var(--success); text-decoration: none;">config.jsonld</a>
+          <a id="devicesLink" href="#" target="_blank"
+            style="color: var(--success); text-decoration: none;">devices/</a>
+        </div>
+      </div>
+
+      <div class="section-title">Democracy Check</div>
+      <div class="input-group">
+        <label for="ticketId">Ticket ID (Optional)</label>
+        <input id="ticketId" type="text" placeholder="Auto-mints if empty" />
+      </div>
+
+      <div class="btn-row">
+        <button id="mint" class="btn-secondary" disabled>Mint Ticket</button>
+        <button id="redeem" class="btn-primary" disabled>Redeem & Connect</button>
+      </div>
+
+      <div class="log-container">
+        <div class="section-title" style="border: none; margin-bottom: 0.5rem;">System Log</div>
+        <pre id="log"></pre>
+      </div>
     </div>
-
-    <h3>Device Registration</h3>
-    <button id="register" disabled>Register this device</button>
-
-    <h3>Ticket Redemption (Demo)</h3>
-    <button id="mint" disabled>Mint New Ticket</button>
-    <label>
-      Ticket ID
-      <input id="ticketId" type="text" placeholder="ticket-123" />
-    </label>
-    <button id="redeem" disabled>Redeem Ticket & Write Receipt</button>
-
-    <h3>Log</h3>
-    <pre id="log"></pre>
   </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>
+
+</html>
 
 </html>

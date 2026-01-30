@@ -14,6 +14,7 @@ import {
   getThing,
   getStringNoLocale,
   getUrl,
+  getUrlAll,
 } from "@inrupt/solid-client";
 
 const session = getDefaultSession();
@@ -32,6 +33,16 @@ function log(msg) {
 
 function setStatus(msg) {
   statusEl.textContent = msg;
+  const dot = document.getElementById("statusDot");
+  const lowMsg = msg.toLowerCase();
+
+  dot.classList.remove("active", "error");
+
+  if (lowMsg.includes("success") || lowMsg.includes("logged in") || lowMsg.includes("initialized") || lowMsg.includes("minted")) {
+    dot.classList.add("active");
+  } else if (lowMsg.includes("fail") || lowMsg.includes("error") || lowMsg.includes("not logged in") || lowMsg.includes("unauthorized")) {
+    dot.classList.add("error");
+  }
 }
 
 let cachedStorageRoot = null;
@@ -161,6 +172,22 @@ async function bootstrapPod() {
     .build();
   await writeJsonLd(indexUrl, indexThing, "index");
 
+  // Write default allow-all policy (Phase 11 Production Spec)
+  const policyUrl = `${root}policies/policy-default.jsonld`;
+  const policyJson = {
+    "@context": ["https://www.w3.org/ns/solid/terms"],
+    "type": "KleitikonPolicy",
+    "policy_id": "pol-default",
+    "applies_to": { "all_devices": true },
+    "permits": [{ "action": "channel.bootstrap", "resource": "*" }]
+  };
+  await session.fetch(policyUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "application/ld+json" },
+    body: JSON.stringify(policyJson)
+  });
+  log(`wrote default policy: ${policyUrl}`);
+
   // Read-after-write verification
   const configOk = await readAfterWrite(configUrl);
   const indexOk = await readAfterWrite(indexUrl);
@@ -251,7 +278,7 @@ async function redeemTicket() {
     log("Auto-minting fresh ticket for demo...");
     try {
       const cpBase = import.meta.env.VITE_CP_BASE_URL || "http://localhost:8787";
-      const res = await fetch(`${cpBase}/tickets/mint`, { method: "POST" });
+      const res = await session.fetch(`${cpBase}/tickets/mint`, { method: "POST" });
       if (!res.ok) throw new Error("CP Mint failed");
       const data = await res.json();
       ticketId = data.ticket_id || data.id;
@@ -339,6 +366,29 @@ async function redeemTicket() {
     const signatureRaw = await window.crypto.subtle.sign("Ed25519", keyPair.privateKey, msg);
     const signature = Array.from(new Uint8Array(signatureRaw)).map(b => b.toString(16).padStart(2, '0')).join('');
 
+    // 3.5 Fetch Policies from Pod (Phase 11 Production Spec)
+    log("fetching policies from Pod...");
+    const policies = [];
+    try {
+      const policyContainerUrl = `${root}policies/`;
+      const containerDataset = await getSolidDataset(policyContainerUrl, { fetch: session.fetch });
+      const containerThing = getThing(containerDataset, policyContainerUrl);
+      const policyUrls = getUrlAll(containerThing, "http://www.w3.org/ns/ldp#contains");
+
+      for (const pUrl of policyUrls) {
+        if (pUrl.endsWith(".jsonld")) {
+          const pRes = await session.fetch(pUrl);
+          if (pRes.ok) {
+            const pData = await pRes.json();
+            policies.push(pData);
+            log(`loaded policy: ${pUrl}`);
+          }
+        }
+      }
+    } catch (err) {
+      log(`Policy fetch warning: ${err.message}`);
+    }
+
     // 4. Call CP
     const response = await fetch(`${cpBase}/tickets/redeem`, {
       method: "POST",
@@ -351,7 +401,8 @@ async function redeemTicket() {
         pop_signature: signature,
         nonce: nonce,
         timestamp: ts,
-        webid: webId
+        webid: webId,
+        policies: policies
       })
     });
 
@@ -475,7 +526,7 @@ mintBtn.addEventListener("click", async () => {
   log("minting ticket...");
   try {
     const cpBase = import.meta.env.VITE_CP_BASE_URL || "http://localhost:8787";
-    const res = await fetch(`${cpBase}/tickets/mint`, { method: "POST" });
+    const res = await session.fetch(`${cpBase}/tickets/mint`, { method: "POST" });
     if (!res.ok) throw new Error(res.statusText);
     const data = await res.json();
     const tid = data.ticket_id || data.id;

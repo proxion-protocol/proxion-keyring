@@ -13,18 +13,80 @@ from .control_plane import ControlPlane
 
 app = Flask(__name__)
 # Allow CORS from localhost:3000 (app) and localhost:5173 (vite dev)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000"]}})
+CORS(app, resources={r"/*": {
+    "origins": ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000"],
+    "allow_headers": ["Authorization", "Content-Type", "DPoP"]
+}})
 
 # Initialize Control Plane with a fixed key for demo purposes
 # In production, load from secure storage
 SIGNING_KEY = os.getenv("KLEITIKON_CP_KEY", "demo-signing-key-must-be-32-bytes!!").encode()
 cp = ControlPlane(signing_key=SIGNING_KEY)
 
+import requests
+from jose import jwt, jwk
+
+def verify_solid_token(token):
+    """Verify a Solid OIDC token and return the WebID.
+    
+    Note: For production, this should also verify DPoP proofs if using Access Tokens.
+    For this spec-comportment demo, we verify the JWT signature against the issuer's JWKS.
+    """
+    try:
+        # 1. Unverified header to get kid and issuer
+        header = jwt.get_unverified_header(token)
+        payload = jwt.get_unverified_claims(token)
+        issuer = payload.get("iss")
+        
+        if not issuer:
+            raise ValueError("Missing issuer in token")
+
+        # 2. Fetch OIDC Config
+        oidc_provider_url = issuer.rstrip("/") + "/.well-known/openid-configuration"
+        config = requests.get(oidc_provider_url).json()
+        jwks_uri = config.get("jwks_uri")
+        
+        # 3. Fetch JWKS
+        jwks = requests.get(jwks_uri).json()
+        
+        # 4. Verify JWT
+        # NOTE: In production, you would verify 'aud' (client_id). 
+        # For this demo, we allow any audience but ensure the signature is valid from the issuer.
+        decoded = jwt.decode(
+            token, 
+            jwks, 
+            algorithms=["RS256", "ES256"], 
+            options={"verify_aud": False}
+        )
+        
+        # 5. Extract WebID
+        # Solid OIDC puts WebID in 'sub' or 'webid' claim
+        webid = decoded.get("webid") or decoded.get("sub")
+        return webid
+    except Exception as e:
+        print(f"Token verification failed: {e}")
+        return None
+
 @app.route("/tickets/mint", methods=["POST"])
 def mint_ticket():
     """Mint a permission ticket (for RO)."""
     try:
-        # TODO: Authenticate RO (not implemented for MVP demo)
+        print(f"MINT REQUEST HEADERS: {request.headers}")
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return jsonify({"error": "Missing Authorization header"}), 401
+        
+        parts = auth_header.split(" ")
+        if len(parts) != 2 or parts[0] not in ["Bearer", "DPoP"]:
+            return jsonify({"error": "Invalid Authorization header format"}), 401
+        
+        token = parts[1]
+        webid = verify_solid_token(token)
+        
+        if not webid:
+            return jsonify({"error": "Invalid Solid OIDC token"}), 403
+            
+        print(f"Authenticated WebID for minting: {webid}")
         result = cp.mint_pt()
         return jsonify(result), 200
     except Exception as e:
@@ -47,7 +109,8 @@ def redeem_ticket():
             pop_signature=data["pop_signature"],
             nonce=data["nonce"],
             timestamp=data["timestamp"],
-            webid=data["webid"]
+            webid=data["webid"],
+            policies=data.get("policies", [])
         )
 
         return jsonify({
