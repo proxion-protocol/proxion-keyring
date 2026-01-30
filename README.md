@@ -4,6 +4,25 @@
 
 Kleitikon is a Solid-compatible application that lets you pair devices and manage connection authorizations using your Solid Pod for policy, receipts, and configuration.
 
+## What is Kleitikon?
+
+Kleitikon (Greek for "Keyring") acts as a **Universal Keyring** for a decentralized internet. In a world where every smart device and service requires a separate account and proprietary app, Kleitikon restores control to the user.
+
+By using the **Solid Protocol**, Kleitikon moves the "Source of Truth" for your digital permissions from corporate clouds to your own **Personal Online Datastore (Pod)**.
+
+## What does this enable?
+
+- **Decentralized Trusted Access**: Instead of trusting a central authority to manage who can access your devices, you manage it yourself using your Pod.
+- **Privacy by Design**: Authorization receipts and policies are stored in your own Pod, encrypted and controlled by you.
+- **Interoperable Connectivity**: Because it follows a universal interface (the Proxion Specification), any device—from a smart light to a high-speed VPN—can ask Kleitikon for permission.
+
+### Practical Applications
+
+- **Privacy-First Smart Homes**: Manage your IoT devices without proprietary cloud backends. A light bulb asks your Pod for access, and you grant it once from your central Kleitikon dashboard.
+- **Zero-Config Private Networks**: Securely link your laptop to your home office files via an encrypted tunnel (like WireGuard) with a single click, authenticated by your Solid identity.
+- **Temporary Guest Access**: Safely grant a visitor 24-hour access to your local network or specific devices. The policy automatically expires and revokes access without you needing to change passwords.
+- **Secure Remote Development**: Link external mobile devices to local development servers (e.g., VS Code extensions on port 3000) securely over the internet without exposing raw ports to the public.
+
 ---
 
 ## Solid Compatibility
