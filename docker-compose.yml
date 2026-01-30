@@ -1,0 +1,11 @@
+version: "3"
+services:
+  scs:
+    image: solidproject/community-server:latest
+    ports:
+      - "3200:3000"
+    command: [ "-c", "config/file-no-setup.json", "-f", "/data" ]
+    volumes:
+      - ./data:/data
+    environment:
+      - CSS_BASE_URL=http://localhost:3200/

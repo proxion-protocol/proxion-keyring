@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@inrupt/solid-client": "^1.30.0",
-    "@inrupt/solid-client-authn-browser": "^1.30.0"
+    "@inrupt/solid-client": "^3.0.0",
+    "@inrupt/solid-client-authn-browser": "^3.0.0"
   },
   "devDependencies": {
     "vite": "^5.4.0"

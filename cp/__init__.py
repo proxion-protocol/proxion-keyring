@@ -1,13 +1,5 @@
-"""Kleitikon control plane stubs."""
+"""Kleitikon Control Plane package."""
 
-from .control_plane import ControlPlane, PolicyDecision, PolicyProvider
-from .pod_storage import PodClient, ensure_pod_containers, write_receipt
+from .control_plane import ControlPlane, ReceiptPayload
 
-__all__ = [
-    "ControlPlane",
-    "PolicyDecision",
-    "PolicyProvider",
-    "PodClient",
-    "ensure_pod_containers",
-    "write_receipt",
-]
+__all__ = ["ControlPlane", "ReceiptPayload"]

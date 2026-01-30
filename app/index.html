@@ -1,42 +1,166 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kleitikon</title>
-    <style>
-      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
-      .card { max-width: 720px; padding: 1.5rem; border: 1px solid #ddd; border-radius: 8px; }
-      label { display: block; margin-top: 1rem; }
-      input { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
-      button { margin-top: 1rem; padding: 0.5rem 1rem; }
-      pre { background: #f6f6f6; padding: 1rem; border-radius: 6px; }
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <h1>Kleitikon</h1>
-      <p>Solid login and Pod bootstrap (Phase 1).</p>
-      <div id="status">Not logged in.</div>
 
-      <label>
-        WebID (optional)
-        <input id="webid" type="text" placeholder="https://user.example/profile#me" />
-      </label>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kleitikon</title>
+  <meta name="description" content="Solid-based device pairing and connection authorization" />
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --card-bg: #fff;
+      --border: #e0e0e0;
+      --primary: #0066cc;
+      --text: #212529;
+      --muted: #6c757d;
+    }
 
-      <label>
-        OIDC Issuer (required)
-        <input id="issuer" type="text" placeholder="https://solidcommunity.net" />
-      </label>
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: var(--bg);
+      color: var(--text);
+    }
 
-      <button id="login">Log in with Solid</button>
-      <button id="logout" disabled>Log out</button>
+    .card {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
 
-      <h3>Pod bootstrap</h3>
-      <button id="bootstrap" disabled>Create /kleitikon/ containers</button>
-      <pre id="log"></pre>
+    h1 {
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      margin-top: 1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    button+button {
+      margin-left: 0.5rem;
+    }
+
+    pre {
+      background: #f1f1f1;
+      padding: 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      max-height: 200px;
+    }
+
+    #status {
+      margin: 1rem 0;
+      font-weight: 500;
+    }
+
+    #webIdDisplay {
+      font-size: 0.85rem;
+      color: var(--muted);
+      word-break: break-all;
+      display: none;
+    }
+
+    #podInfo {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #e8f5e9;
+      border-radius: 6px;
+      display: none;
+    }
+
+    #podInfo a {
+      color: var(--primary);
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>Kleitikon</h1>
+    <p>Solid-based device pairing and connection authorization.</p>
+
+    <div id="status">Not logged in.</div>
+    <div id="webIdDisplay"></div>
+
+    <label>
+      OIDC Issuer (IdP URL)
+      <input id="issuer" type="text" value="http://localhost:3200/" placeholder="http://localhost:3200/" />
+    </label>
+    <p class="hint">Primary: enter your Solid OIDC issuer (e.g., http://localhost:3200/).</p>
+
+    <button id="login">Log in with Solid</button>
+    <button id="logout" disabled>Log out</button>
+
+    <h3>Pod Bootstrap</h3>
+    <button id="bootstrap" disabled>Create /kleitikon/ containers</button>
+
+    <div id="podInfo">
+      <strong>Pod initialized</strong>
+      <p>Storage root: <span id="podRoot"></span></p>
+      <p>
+        <a id="configLink" href="#" target="_blank">config.jsonld</a> |
+        <a id="devicesLink" href="#" target="_blank">devices/index.jsonld</a>
+      </p>
     </div>
 
-    <script type="module" src="/src/main.js"></script>
-  </body>
+    <h3>Device Registration</h3>
+    <button id="register" disabled>Register this device</button>
+
+    <h3>Ticket Redemption (Demo)</h3>
+    <button id="mint" disabled>Mint New Ticket</button>
+    <label>
+      Ticket ID
+      <input id="ticketId" type="text" placeholder="ticket-123" />
+    </label>
+    <button id="redeem" disabled>Redeem Ticket & Write Receipt</button>
+
+    <h3>Log</h3>
+    <pre id="log"></pre>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
 </html>

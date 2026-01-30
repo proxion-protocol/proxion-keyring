@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# Kleitikon
+app/.env
+app/dist/
+app/node_modules/
+
+# Local Pod Data (if any)
+.data/
+data/
+*.log
