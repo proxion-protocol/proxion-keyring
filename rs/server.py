@@ -80,7 +80,8 @@ def bootstrap():
         material = rs.bootstrap_channel(
             token=Token(token_id=token_id, aud="wg0", exp=None, permissions=[], caveats=[], holder_key_fingerprint=""), # deeply mocked for now as we skipped full serialization
             ctx=ctx,
-            proof=None
+            proof=None,
+            client_pubkey=data.get("pubkey", "") # Client must provide their WireGuard public key
         )
         
         return jsonify(material.to_dict()), 200

@@ -1,8 +1,3 @@
-"""Resource server for secure-channel bootstrap (Phase 4).
-
-Validates tokens, returns connection material. WireGuard mutation behind feature flag.
-"""
-
 from __future__ import annotations
 
 import os
@@ -12,6 +7,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from proxion_core import Decision, RequestContext, Token, validate_request
+from .backends.factory import create_backend
+from .backends.base import PeerConfig
+from .address_pool import AddressPool
 
 
 @dataclass
@@ -36,6 +34,7 @@ class ConnectionMaterial:
     server_pubkey: str
     allowed_ips: list[str]
     expires_at: int
+    wg_config_template: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,6 +45,7 @@ class ConnectionMaterial:
             "server": {"endpoint": self.server_endpoint, "pubkey": self.server_pubkey},
             "allowed_ips": self.allowed_ips,
             "expires_at": self.expires_at,
+            "wg_config_template": self.wg_config_template,
         }
 
 
@@ -59,10 +59,27 @@ class ResourceServer:
     ) -> None:
         self._signing_key = signing_key
         self._wg = wg_config or WireGuardConfig()
-        # Check for NO_MUTATION env var (default: disabled)
+        
+        # Address Pool
+        self._address_pool = AddressPool(
+            network=self._wg.address_pool,
+            # Reserve .0 (network) and .1 (gateway)
+            reserved=2, 
+        )
+        
+        # Mutation mode (fail-closed)
         self._mutation_enabled = os.getenv("KLEITIKON_WG_MUTATION", "false").lower() == "true"
-        # Simulated address pool counter
-        self._next_address = 2
+        
+        if self._mutation_enabled:
+            # Phase 1A: Only Linux mutation supported
+            self._backend = create_backend(use_mock=False)
+            available, msg = self._backend.check_available()
+            if not available:
+                # Hard fail if mutation requested but unavailable
+                raise RuntimeError(f"KLEITIKON_WG_MUTATION=true but WireGuard unusable: {msg}")
+        else:
+            # Phase 1B: Mock backend for config-generation only
+            self._backend = create_backend(use_mock=True)
 
     def authorize(self, token: Token, ctx: RequestContext, proof: object) -> Decision:
         """Validate a token against a request context.
@@ -76,6 +93,7 @@ class ResourceServer:
         token: Token,
         ctx: RequestContext,
         proof: object,
+        client_pubkey: str,
     ) -> ConnectionMaterial:
         """Bootstrap a secure channel.
 
@@ -85,9 +103,20 @@ class ResourceServer:
         if not decision.allowed:
             raise PermissionError(f"Authorization denied: {decision.reason}")
 
-        # Allocate client address
-        client_addr = f"10.0.0.{self._next_address}/32"
-        self._next_address += 1
+        # Allocate client address (safe, thread-safe, reusing leases)
+        client_addr = self._address_pool.allocate(token.holder_key_fingerprint)
+
+        # Mutate backend if enabled
+        if self._mutation_enabled:
+            peer = PeerConfig(
+                public_key=client_pubkey,
+                allowed_ips=[client_addr],
+                persistent_keepalive=25,
+            )
+            self._backend.add_peer(self._wg.interface, peer)
+
+        # Generate config template for client
+        wg_template = self._generate_config_template(client_addr)
 
         return ConnectionMaterial(
             dp="wireguard",
@@ -95,31 +124,46 @@ class ResourceServer:
             client_address=client_addr,
             client_dns=self._wg.dns,
             server_endpoint=self._wg.endpoint,
-            server_pubkey=self._wg.server_pubkey or secrets.token_hex(32),
+            server_pubkey=self._wg.server_pubkey or "SERVER_PUBKEY_PLACEHOLDER",
             allowed_ips=[self._wg.address_pool],
             expires_at=int(time.time()) + 3600,
+            wg_config_template=wg_template,
         )
 
-    def wg_peer_add(self, pubkey: str, allowed_ips: list[str]) -> None:
-        """Add a WireGuard peer.
+    def _generate_config_template(self, client_addr: str) -> str:
+        """Generate WireGuard config template."""
+        return f"""# ============================================================
+# KLEITIKON CONFIG TEMPLATE
+# INSERT YOUR PRIVATE KEY LOCALLY. DO NOT SEND TO SERVER.
+# ============================================================
 
-        Only executes if KLEITIKON_WG_MUTATION=true.
-        """
+[Interface]
+Address = {client_addr}
+DNS = {', '.join(self._wg.dns)}
+PrivateKey = {{{{CLIENT_PRIVATE_KEY}}}}
+
+[Peer]
+PublicKey = {self._wg.server_pubkey or 'SERVER_PUBKEY_PLACEHOLDER'}
+Endpoint = {self._wg.endpoint}
+AllowedIPs = {self._wg.address_pool}
+PersistentKeepalive = 25
+"""
+
+    def wg_peer_add(self, pubkey: str, allowed_ips: list[str]) -> None:
+        """Add a WireGuard peer (Direct)."""
         if not self._mutation_enabled:
             raise RuntimeError("WireGuard mutation disabled (NO_MUTATION mode)")
-        if not self._wg.enabled:
-            raise RuntimeError("WireGuard not enabled")
-        # TODO: wg set wg0 peer <pubkey> allowed-ips <ips>
-        raise NotImplementedError("wg_peer_add not yet implemented")
+            
+        peer = PeerConfig(
+            public_key=pubkey, 
+            allowed_ips=allowed_ips,
+            persistent_keepalive=25
+        )
+        self._backend.add_peer(self._wg.interface, peer)
 
     def wg_peer_remove(self, pubkey: str) -> None:
-        """Remove a WireGuard peer.
-
-        Only executes if KLEITIKON_WG_MUTATION=true.
-        """
+        """Remove a WireGuard peer (Direct)."""
         if not self._mutation_enabled:
             raise RuntimeError("WireGuard mutation disabled (NO_MUTATION mode)")
-        if not self._wg.enabled:
-            raise RuntimeError("WireGuard not enabled")
-        # TODO: wg set wg0 peer <pubkey> remove
-        raise NotImplementedError("wg_peer_remove not yet implemented")
+            
+        self._backend.remove_peer(self._wg.interface, pubkey)

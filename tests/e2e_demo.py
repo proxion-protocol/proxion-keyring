@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives import serialization
 # Config
 CP_URL = "http://localhost:8787"
 RS_URL = "http://localhost:8788"
-WEBID = "http://localhost:3200/hobo/profile/card#me" # Change if needed
+WEBID = "http://localhost:3200/alice/profile/card#me" # Change if needed
 
 def main():
     print(f"--- Kleitikon E2E Demo ---")
