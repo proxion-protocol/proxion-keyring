@@ -1,0 +1,42 @@
+﻿cmd : INFO: Initializing Kleitikon Client...
+At line:1 char:179
++ ... : $ticket"; cmd /c kleitikon.bat connect --ticket $ticket 
+--dev-polic ...
++                 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO: Initializing 
+    Kleitikon Client...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO: Device Identity: e4c5c404873c9656...
+INFO: Redeeming ticket: ybwxBd3eWjmrZAdQqqd8262wlCKLlprr
+INFO: Using DEV policy payload.
+INFO: Ticket Redeemed. Token: tJMN1n-798qq3zBl...
+INFO: Bootstrapping WireGuard Tunnel...
+INFO: Received WireGuard Configuration.
+
+--- Dry Run: Generated Config ---
+
+{
+  "allowed_ips": [
+    "10.0.0.0/24"
+  ],
+  "client": {
+    "address": "10.0.0.3/32",
+    "dns": [
+      "10.0.0.1"
+    ]
+  },
+  "dp": "wireguard",
+  "expires_at": 1769850151,
+  "interface": "wg0",
+  "server": {
+    "endpoint": "127.0.0.1:51820",
+    "pubkey": "demo-pubkey"
+  },
+  "type": "KleitikonConnectionMaterial",
+  "wg_config_template": "# ============================================================\n# KLEITIKON CONFIG TEMPLATE\n# INSERT YOUR PRIVATE KEY LOCALLY. DO NOT SEND TO SERVER.\n# ============================================================\n\n[Interface]\nAddress = 10.0.0.3/32\nDNS = 10.0.0.1\nPrivateKey = {{CLIENT_PRIVATE_KEY}}\n\n[Peer]\nPublicKey = demo-pubkey\nEndpoint = 127.0.0.1:51820\nAllowedIPs = 10.0.0.0/24\nPersistentKeepalive = 25\n"
+}
+
+
+---------------------------------

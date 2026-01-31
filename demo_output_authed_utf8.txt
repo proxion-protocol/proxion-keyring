@@ -1,0 +1,19 @@
+﻿--- Kleitikon E2E Demo ---
+
+[1] Minting Ticket...
+    Success! Ticket ID: qqKHRHVPBRVSlY9QYr_cObRbo2x_FfrE
+
+[2] Generating Device Identity (Ed25519)...
+    Device Pubkey: d23799f4b8142927...
+
+[3] Signing Proof-of-Possession...
+    Signature generated.
+
+[3.5] Fetching Policies from Solid Pod...
+    Warning: Could not fetch policy (404)
+
+[4] Redeeming Ticket at CP...
+    FAILED: 403 {
+  "error": "No matching policy found"
+}
+

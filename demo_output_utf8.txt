@@ -1,0 +1,4 @@
+﻿--- Kleitikon E2E Demo ---
+
+[1] Minting Ticket...
+    FAILED: 401 Client Error: UNAUTHORIZED for url: http://localhost:8787/tickets/mint

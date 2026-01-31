@@ -1,0 +1,13 @@
+{
+    "@context": "https://proxion.protocol/ontology/v1#",
+    "@type": "Policy",
+    "applies_to": {
+        "all_devices": true
+    },
+    "permits": [
+        {
+            "action": "channel.bootstrap",
+            "resource": "*"
+        }
+    ]
+}

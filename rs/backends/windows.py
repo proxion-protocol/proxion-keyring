@@ -9,16 +9,25 @@ class WindowsBackend(WireGuardBackend):
     def __init__(self):
         # Locate wg.exe
         self._wg_exe = shutil.which("wg") or r"C:\Program Files\WireGuard\wg.exe"
+        self._dry_run = os.getenv("KLEITIKON_WG_DRY_RUN", "false").lower() == "true"
         
     def _run(self, cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
-        """Run command. Never uses shell=True."""
+        """Run command or simulate if dry_run enabled."""
+        import sys
+        
+        full_cmd_str = f'"{self._wg_exe}" ' + " ".join(cmd)
+        if self._dry_run:
+            sys.stderr.write(f"WG_DRY_RUN: {full_cmd_str}\n")
+            sys.stderr.flush()
+            # Return a mock completed process
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
         full_cmd = [self._wg_exe] + cmd
         return subprocess.run(
             full_cmd,
             capture_output=True,
             text=True,
             check=check,
-            # Windows specific: suppress window creation if possible, but standard run is fine
         )
     
     def check_available(self) -> tuple[bool, str]:

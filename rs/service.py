@@ -67,6 +67,9 @@ class ResourceServer:
             reserved=2, 
         )
         
+        # Active session tracking
+        self._active_sessions: dict[str, dict] = {}
+        
         # Mutation mode (fail-closed)
         self._mutation_enabled = os.getenv("KLEITIKON_WG_MUTATION", "false").lower() == "true"
         
@@ -114,6 +117,16 @@ class ResourceServer:
                 persistent_keepalive=25,
             )
             self._backend.add_peer(self._wg.interface, peer)
+
+        # Record active session
+        session_ip = client_addr.split('/')[0]
+        print(f"RS: Recording active session for {session_ip}")
+        self._active_sessions[session_ip] = {
+             "token_id": token.token_id,
+             "pubkey": client_pubkey,
+             "webid": token.holder_key_fingerprint, # Fingerprint used as webid in current demo
+             "expires_at": int(time.time()) + 3600
+        }
 
         # Generate config template for client
         wg_template = self._generate_config_template(client_addr)

@@ -18,12 +18,34 @@ CORS(app, resources={r"/*": {
     "allow_headers": ["Authorization", "Content-Type", "DPoP"]
 }})
 
-# Initialize Control Plane with a fixed key for demo purposes
-# In production, load from secure storage
-SIGNING_KEY = os.getenv("KLEITIKON_CP_KEY", "demo-signing-key-must-be-32-bytes!!").encode()
-cp = ControlPlane(signing_key=SIGNING_KEY)
+# Initialize Control Plane with Ed25519 signing key
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives import serialization
+
+cp_key_hex = os.getenv("KLEITIKON_CP_KEY")
+if cp_key_hex:
+    try:
+        SIGNING_KEY = ed25519.Ed25519PrivateKey.from_private_bytes(bytes.fromhex(cp_key_hex))
+    except Exception as e:
+        print(f"ERROR: Failed to load KLEITIKON_CP_KEY: {e}")
+        SIGNING_KEY = ed25519.Ed25519PrivateKey.generate()
+else:
+    # Use a fixed key for demo consistency if possible, or generate
+    # For this demo, we'll generate and print for the RS to pick up if manually run.
+    # But for E2E, we'll probably want a way to share it.
+    SIGNING_KEY = ed25519.Ed25519PrivateKey.generate()
+
+CP_PUBKEY_HEX = SIGNING_KEY.public_key().public_bytes(
+    encoding=serialization.Encoding.Raw,
+    format=serialization.PublicFormat.Raw
+).hex()
+print(f"--- CP STARTING ---")
+print(f"KLEITIKON_CP_PUBKEY={CP_PUBKEY_HEX}")
+
+cp = ControlPlane(signing_key=SIGNING_KEY, ticket_store_path="tickets_v2.json")
 
 import requests
+import proxion_core
 from jose import jwt, jwk
 
 def verify_solid_token(token):
@@ -32,6 +54,10 @@ def verify_solid_token(token):
     Note: For production, this should also verify DPoP proofs if using Access Tokens.
     For this spec-comportment demo, we verify the JWT signature against the issuer's JWKS.
     """
+    if os.getenv("KLEITIKON_DEV_MODE") == "1" and token == "dev-token-bypass":
+        print("WARN: Using Dev Mode Auth Bypass")
+        return "https://localhost:3200/test-user/profile/card#me"
+
     try:
         # 1. Unverified header to get kid and issuer
         header = jwt.get_unverified_header(token)
@@ -67,6 +93,40 @@ def verify_solid_token(token):
         print(f"Token verification failed: {e}")
         return None
 
+@app.route("/tickets/revoke", methods=["POST"])
+def revoke():
+    """Revoke a token."""
+    try:
+        data = request.json
+        token_id = data.get("token_id")
+        if not token_id:
+            return jsonify({"error": "Missing token_id"}), 400
+        
+        import sys
+        sys.stderr.write(f"CP: Revoking token {token_id}\n")
+        sys.stderr.flush()
+        
+        cp.revoke_token(token_id)
+        return jsonify({"status": "revoked", "token_id": token_id}), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/crl", methods=["GET"])
+def get_crl():
+    """Serve the Certificate Revocation List."""
+    try:
+        crl = cp.get_crl()
+        import sys
+        sys.stderr.write(f"CP: Serving CRL with {len(crl)} entries\n")
+        sys.stderr.flush()
+        return jsonify({"revoked_tokens": crl}), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/tickets/mint", methods=["POST"])
 def mint_ticket():
     """Mint a permission ticket (for RO)."""
@@ -101,7 +161,8 @@ def redeem_ticket():
         if not all(k in data for k in required):
             return jsonify({"error": "Missing required fields"}), 400
 
-        token, receipt = cp.redeem_pt(
+        # Now cp.redeem_pt returns (jwt_str, receipt_payload)
+        jwt_token, receipt = cp.redeem_pt(
             ticket_id=data["ticket_id"],
             rp_pubkey=data["rp_pubkey"],
             aud=data["aud"],
@@ -114,18 +175,7 @@ def redeem_ticket():
         )
 
         return jsonify({
-            "token": token.token_id,  # sending full token object might be better if client needs it, but token_id is usually the handle
-            # Actually, proxion-core Token object might not be directly serializable.
-            # Let's send the serialized token if possible or just the ID if that's what we use.
-            # For now, assuming token.token_id is the capability string/handle.
-            # Re-reading proxion-core: issue_token returns a Token object.
-            # We should probably return the full token structure if it's opaque, but here we just send what's needed.
-            # Let's serialize the minimal needed parts.
-            "token_data": {
-               "token_id": token.token_id,
-               "exp": int(token.exp.timestamp()),
-               "permissions": list(token.permissions)
-            },
+            "token": jwt_token, 
             "receipt": receipt.to_jsonld(),
             "rs_hint": f"http://localhost:8788" # Demo hint
         }), 200
@@ -139,4 +189,4 @@ def redeem_ticket():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8787))
-    app.run(host="127.0.0.1", port=port, debug=True)
+    app.run(host="127.0.0.1", port=port, debug=False)

@@ -15,7 +15,7 @@ app/.env
 app/dist/
 app/node_modules/
 
-# Local Pod Data (if any)
-.data/
-data/
-*.log
+# Kleitikon Data
+tickets*.json
+*.jsonld
+!test-policy.jsonld

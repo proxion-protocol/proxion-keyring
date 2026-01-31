@@ -1,0 +1,37 @@
+﻿cmd : INFO: Initializing Kleitikon Client...
+At line:1 char:179
++ ... : $ticket"; cmd /c kleitikon.bat connect --ticket $ticket 
+--dev-polic ...
++                 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO: Initializing K 
+   leitikon Client...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO: Device Identity: e4c5c404873c9656...
+INFO: Redeeming ticket: yOX59_b09mN8d0QDm4pO2IkAktZkF7rd
+INFO: Using DEV policy payload.
+INFO: Ticket Redeemed. Token: fveCsNfgmYvcEttO...
+INFO: Bootstrapping WireGuard Tunnel...
+INFO: Received WireGuard Configuration.
+
+--- Dry Run: Generated Config ---
+
+# ============================================================
+# KLEITIKON CONFIG TEMPLATE
+# INSERT YOUR PRIVATE KEY LOCALLY. DO NOT SEND TO SERVER.
+# ============================================================
+
+[Interface]
+Address = 10.0.0.3/32
+DNS = 10.0.0.1
+PrivateKey = InVeRe90FkXnIc+/gzDYFthLUGK7rkhotqs8e/MOg9k=
+
+[Peer]
+PublicKey = demo-pubkey
+Endpoint = 127.0.0.1:51820
+AllowedIPs = 10.0.0.0/24
+PersistentKeepalive = 25
+
+
+---------------------------------

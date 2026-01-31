@@ -45,6 +45,7 @@ class TestResourceServer:
             server_pubkey="pubkey",
             allowed_ips=["10.0.0.0/24"],
             expires_at=1234567890,
+            wg_config_template="[Interface]\n...",
         )
         d = material.to_dict()
 

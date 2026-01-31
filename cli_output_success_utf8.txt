@@ -1,0 +1,20 @@
+﻿cmd : INFO: Initializing Kleitikon Client...
+At line:1 char:179
++ ... : $ticket"; cmd /c kleitikon.bat connect --ticket $ticket 
+--dev-polic ...
++                 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO: Initializing 
+    Kleitikon Client...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO: Device Identity: e4c5c404873c9656...
+INFO: Redeeming ticket: ypX-ylxVVuUh29UePWCzGstlH5VwDY6r
+INFO: Using DEV policy payload.
+INFO: Ticket Redeemed. Token: fAHU7veTDbWCaJIh...
+INFO: Bootstrapping WireGuard Tunnel...
+ERROR: Bootstrap Failed: Bootstrap failed: {
+  "error": "Decision.__init__() got an unexpected keyword 
+argument 'permissions'"
+}
+

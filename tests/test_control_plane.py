@@ -56,6 +56,11 @@ class TestControlPlane:
         msg = f"{ticket_id}|{aud}|{nonce}|{ts}".encode("utf-8")
         sig = priv.sign(msg).hex()
 
+        PERMIT_ALL = [{
+            "applies_to": {"all_devices": True},
+            "permits": [{"action": "bootstrap", "resource": aud}]
+        }]
+
         token, receipt = cp.redeem_pt(
             ticket_id=ticket_id,
             rp_pubkey=rp_pubkey,
@@ -65,11 +70,13 @@ class TestControlPlane:
             nonce=nonce,
             timestamp=ts,
             webid="https://example.com/user#me",
+            policies=PERMIT_ALL,
             now=now,
         )
 
         assert token is not None
-        assert token.token_id is not None
+        assert isinstance(token, str) # Now returns JWT string
+        assert token.count('.') == 2 # Basic structure check for JWT
         assert isinstance(receipt, ReceiptPayload)
         assert receipt.who_webid == "https://example.com/user#me"
         assert receipt.path.startswith("/kleitikon/receipts/")
@@ -94,6 +101,11 @@ class TestControlPlane:
         msg = f"{ticket['ticket_id']}|{aud}|{nonce}|{ts}".encode("utf-8")
         sig = priv.sign(msg).hex()
 
+        PERMIT_ALL = [{
+            "applies_to": {"all_devices": True},
+            "permits": [{"action": "bootstrap", "resource": aud}]
+        }]
+
         # First redemption succeeds
         cp.redeem_pt(
             ticket_id=ticket["ticket_id"],
@@ -104,6 +116,7 @@ class TestControlPlane:
             nonce=nonce,
             timestamp=ts,
             webid="https://example.com/user#me",
+            policies=PERMIT_ALL,
             now=now,
         )
 
@@ -125,7 +138,7 @@ class TestControlPlane:
         """Redeeming an unknown ticket should fail."""
         now = datetime.now(timezone.utc)
 
-        with pytest.raises(ValueError, match="Unknown ticket"):
+        with pytest.raises(ValueError, match="Unknown or expired ticket"):
             cp.redeem_pt(
                 ticket_id="nonexistent-ticket",
                 rp_pubkey="00" * 32, # dummy 32-byte key
@@ -158,6 +171,11 @@ class TestControlPlane:
         msg = f"{ticket['ticket_id']}|{aud}|{nonce}|{ts}".encode("utf-8")
         sig = priv.sign(msg).hex()
 
+        PERMIT_ALL = [{
+            "applies_to": {"all_devices": True},
+            "permits": [{"action": "bootstrap", "resource": aud}]
+        }]
+
         _, receipt = cp.redeem_pt(
             ticket_id=ticket["ticket_id"],
             rp_pubkey=rp_pubkey,
@@ -167,6 +185,7 @@ class TestControlPlane:
             nonce=nonce,
             timestamp=ts,
             webid="https://example.com/user#me",
+            policies=PERMIT_ALL,
             now=now,
         )
 

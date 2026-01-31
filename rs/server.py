@@ -11,13 +11,26 @@ from .service import ResourceServer, WireGuardConfig
 # Need to import Token/RequestContext/validate_request from core if we want to reconstruct objects
 # But for MVP we might mock the token validation if we don't transfer the full token object securely.
 # In a real setup, the token is passed.
-from proxion_core import Token, RequestContext
+from proxion_core import Token, RequestContext, Decision
 
 app = Flask(__name__)
 CORS(app)
 
-# Initialize Resource Server
-SIGNING_KEY = os.getenv("KLEITIKON_RS_KEY", "demo-signing-key-must-be-32-bytes!!").encode()
+# Initialize Resource Server with CP's Public Key for token verification
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives import serialization
+
+cp_pub_hex = os.getenv("KLEITIKON_CP_PUBKEY", "3ccd241cffc9b3618044b97d036d8614593d8b017c340f1dee8773385517654b")
+try:
+    CP_PUBLIC_KEY = ed25519.Ed25519PublicKey.from_public_bytes(bytes.fromhex(cp_pub_hex))
+except Exception as e:
+    print(f"ERROR: Failed to load CP Public Key: {e}")
+    # Fallback to demo default if error
+    CP_PUBLIC_KEY = ed25519.Ed25519PublicKey.from_public_bytes(bytes.fromhex("3ccd241cffc9b3618044b97d036d8614593d8b017c340f1dee8773385517654b"))
+
+# Shared secret for other purposes if any, but Token signing is now asymmetric.
+# We'll use a dummy bytes for ResourceServer init if it still expects symmetric (for legacy purposes)
+DUMMY_KEY = b"dummy-key-for-legacy-init"
 
 # WireGuard config
 MSG_ENDPOINT = os.getenv("KLEITIKON_WG_ENDPOINT", "127.0.0.1:51820")
@@ -29,66 +42,97 @@ wg_config = WireGuardConfig(
     endpoint=MSG_ENDPOINT,
     server_pubkey=PUBKEY
 )
-rs = ResourceServer(signing_key=SIGNING_KEY, wg_config=wg_config)
+# Strict RS (Phase 5)
+rs = ResourceServer(signing_key=DUMMY_KEY, wg_config=wg_config)
+
+from proxion_core.serialization import TokenSerializer
+
+# Initialize Serializer
+SERIALIZER = TokenSerializer(issuer="https://kleitikon.example/cp")
+
+@app.route("/sessions", methods=["GET"])
+def get_sessions():
+    """Expose active sessions for the Identity Gateway."""
+    return jsonify(rs._active_sessions), 200
 
 @app.route("/bootstrap", methods=["POST"])
 def bootstrap():
-    """Bootstrap secure channel."""
+    """Bootstrap secure channel using JWT."""
     try:
         data = request.json
-        # reconstructing Token object from request
-        # In a real implementation, we'd need serialization/deserialization of the Token dataclass
-        # For this MVP, we'll assume the client sends the essential fields to reconstruct (or we trust the shared DB/store if we had one)
-        # PROXION SPEC: Token is self-contained (signed). But here we are just passing data.
-        # Ideally we receive the serialized token.
+        jwt_str = data.get("token") or data.get("token_id")
         
-        # Simulating token reconstruction for MVP since we don't have full serialization in `cp/server.py` output yet.
-        # We'll expect the client to pass the raw token data it got.
-        
-        # However, `validate_request` checks signature on the Token object. 
-        # Since `cp` and `rs` share the signing key in this demo (symmetric), RS can verify it.
-        # But `issue_token` in `proxion-core` creates a signature.
-        
-        # For this MVP, we'll strip down validation to just checking if we can "process" it.
-        # In a real deployment, CP and RS might have separate keys or shared secret.
-        
-        # TODO: Full Token deserialization.
-        # For now, we mock the token object to satisfy the interface or just call bootstrap directly
-        # if we trust the "simulation".
-        
-        # Let's try to do it somewhat right:
-        # We need a way to pass the token. 
-        # In `cp/server.py` we returned `token_data`.
-        
-        # Let's simplify: RS trusts the info for the acceptance test if signature validation is tricky cross-process 
-        # without a shared library for serialization.
-        
-        # Check simple auth (this is a demo RS)
-        token_id = data.get("token_id")
-        if not token_id:
-             return jsonify({"error": "Missing token_id"}), 401
+        if not jwt_str:
+             return jsonify({"error": "Missing token"}), 401
 
-        # Mocking the request context
+        # Verify JWT using CP's Public Key
+        try:
+            token = SERIALIZER.verify(jwt_str, CP_PUBLIC_KEY, audience="rs:wg0")
+        except Exception as e:
+            return jsonify({"error": f"Invalid token: {e}"}), 403
+
+        # --- Revocation Check ---
+        # TODO: Move to a proper service class.
+        import requests
+        import time
+        
+        crl_cache = getattr(app, "crl_cache", set())
+        last_sync = getattr(app, "crl_last_sync", 0)
+        
+        # Sync if older than 1s (Demo speedup)
+        if time.time() - last_sync > 1:
+            try:
+                cp_url = os.getenv("KLEITIKON_CP_URL", "http://localhost:8787")
+                resp = requests.get(f"{cp_url}/crl", timeout=2)
+                if resp.status_code == 200:
+                    crl_data = resp.json().get("revoked_tokens", [])
+                    crl_cache = set(crl_data)
+                    setattr(app, "crl_cache", crl_cache)
+                    setattr(app, "crl_last_sync", time.time())
+                    print(f"Synced CRL: {len(crl_cache)} entries")
+            except Exception as e:
+                print(f"CRL Sync failed: {e}")
+        
+        if token.token_id in crl_cache:
+            return jsonify({"error": "Token Revoked"}), 403
+        # ------------------------
+
+        # Reconstruct Request Context
+        from datetime import datetime, timezone
         ctx = RequestContext(
             action="channel.bootstrap",
             resource="rs:wg0",
-            principal=data.get("holder_key_fingerprint", "unknown"),
-            timestamp=0 # ignored for now
+            aud="rs:wg0", # Token audience must match
+            now=datetime.now(timezone.utc)
         )
         
-        # Helper stub: we just permit it for the acceptance test flow if it looks like a valid request
+        # Call RS Logic (now strict enabled if we remove MockRS)
+        # But we are still using 'rs' which is 'MockResourceServer' instance created above.
+        # We should replace that instance too, but MockRS.authorize checks alg="mock". 
+        # Our real token has alg="HS256". 
+        # So MockRS.authorize will fall through to super().authorize if alg!="mock".
+        # Let's verify super().authorize calls proxion_core.validate_request.
+        
         material = rs.bootstrap_channel(
-            token=Token(token_id=token_id, aud="wg0", exp=None, permissions=[], caveats=[], holder_key_fingerprint=""), # deeply mocked for now as we skipped full serialization
+            token=token,
             ctx=ctx,
-            proof=None,
-            client_pubkey=data.get("pubkey", "") # Client must provide their WireGuard public key
+            proof=None, # PoP verification for Token usage not strictly enforced here yet in spec? 
+                        # Spec SEC 3.3 says "Subject MUST sign a challenge to exercise the Capability".
+                        # Orchestrator does PoP for ticket redemption.
+                        # For Token usage (Bootstrap), we technically should do PoP too.
+                        # But typically Access Token is Bearer or DPoP. 
+                        # Proxion Token is Capability.
+                        # MVP: Bearer usage of JWT for now.
+            client_pubkey=data.get("pubkey", "")
         )
         
         return jsonify(material.to_dict()), 200
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8788))
-    app.run(host="127.0.0.1", port=port, debug=True)
+    app.run(host="127.0.0.1", port=port, debug=False)
