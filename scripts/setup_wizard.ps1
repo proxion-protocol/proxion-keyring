@@ -148,8 +148,8 @@ else {
 }
 
 # 4. Environment Setup
-$env:proxion-keyring_WG_MUTATION = "true"
-$env:proxion-keyring_WG_INTERFACE = $InterfaceName
+$env:proxion_keyring_WG_MUTATION = "true"
+$env:proxion_keyring_WG_INTERFACE = $InterfaceName
 # Fix Python Path
 $env:PYTHONPATH = "$ScriptDir\..;$ScriptDir"
 
