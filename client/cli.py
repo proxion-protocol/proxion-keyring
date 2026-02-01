@@ -9,7 +9,7 @@ from client.configurator import get_configurator
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-logger = logging.getLogger("kleitikon")
+logger = logging.getLogger("proxion-keyring")
 
 DEFAULT_CP_URL = os.environ.get("VITE_CP_BASE_URL", "http://localhost:8787")
 DEFAULT_RS_URL = os.environ.get("VITE_RS_BASE_URL", "http://localhost:8788")
@@ -17,7 +17,7 @@ DEFAULT_WEBID = "https://localhost:3200/alice/profile/card#me" # Placeholder for
 
 def cmd_connect(args):
     """Handle connect command."""
-    logger.info("Initializing Kleitikon Client...")
+    logger.info("Initializing proxion-keyring Client...")
     
     # 1. Identity
     id_mgr = IdentityManager()
@@ -108,7 +108,7 @@ def cmd_status(args):
     # TODO: Check running tunnel status via Configurator?
 
 def main():
-    parser = argparse.ArgumentParser(description="Kleitikon VPN Client")
+    parser = argparse.ArgumentParser(description="proxion-keyring VPN Client")
     subparsers = parser.add_subparsers(dest="command", required=True)
     
     # Connect

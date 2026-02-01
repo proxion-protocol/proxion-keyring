@@ -19,5 +19,5 @@ def create_backend(use_mock: bool = False) -> WireGuardBackend:
     # Users should use config-generation mode on these platforms.
     raise RuntimeError(
         f"WireGuard mutation not supported on {system} in Phase 1. "
-        "Set KLEITIKON_WG_MUTATION=false for config-generation mode."
+        "Set proxion-keyring_WG_MUTATION=false for config-generation mode."
     )

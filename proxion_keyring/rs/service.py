@@ -25,7 +25,7 @@ class WireGuardConfig:
 
 @dataclass
 class ConnectionMaterial:
-    """KleitikonConnectionMaterial response."""
+    """proxion-keyringConnectionMaterial response."""
     dp: str
     interface: str
     client_address: str
@@ -38,7 +38,7 @@ class ConnectionMaterial:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "type": "KleitikonConnectionMaterial",
+            "type": "proxion-keyringConnectionMaterial",
             "dp": self.dp,
             "interface": self.interface,
             "client": {"address": self.client_address, "dns": self.client_dns},
@@ -50,7 +50,7 @@ class ConnectionMaterial:
 
 
 class ResourceServer:
-    """Kleitikon Resource Server."""
+    """proxion-keyring Resource Server."""
 
     def __init__(
         self,
@@ -71,7 +71,7 @@ class ResourceServer:
         self._active_sessions: dict[str, dict] = {}
         
         # Mutation mode (fail-closed)
-        self._mutation_enabled = os.getenv("KLEITIKON_WG_MUTATION", "false").lower() == "true"
+        self._mutation_enabled = os.getenv("proxion-keyring_WG_MUTATION", "false").lower() == "true"
         
         if self._mutation_enabled:
             # Phase 1A: Only Linux mutation supported
@@ -79,7 +79,7 @@ class ResourceServer:
             available, msg = self._backend.check_available()
             if not available:
                 # Hard fail if mutation requested but unavailable
-                raise RuntimeError(f"KLEITIKON_WG_MUTATION=true but WireGuard unusable: {msg}")
+                raise RuntimeError(f"proxion-keyring_WG_MUTATION=true but WireGuard unusable: {msg}")
         else:
             # Phase 1B: Mock backend for config-generation only
             self._backend = create_backend(use_mock=True)
@@ -146,7 +146,7 @@ class ResourceServer:
     def _generate_config_template(self, client_addr: str) -> str:
         """Generate WireGuard config template."""
         return f"""# ============================================================
-# KLEITIKON CONFIG TEMPLATE
+# proxion-keyring CONFIG TEMPLATE
 # INSERT YOUR PRIVATE KEY LOCALLY. DO NOT SEND TO SERVER.
 # ============================================================
 

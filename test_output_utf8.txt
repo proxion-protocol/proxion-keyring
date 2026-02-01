@@ -1,14 +1,14 @@
 ﻿============================= test session starts =============================
 platform win32 -- Python 3.12.6, pytest-9.0.1, pluggy-1.6.0 -- C:\Python312\python.exe
 cachedir: .pytest_cache
-hypothesis profile 'default' -> database=DirectoryBasedExampleDatabase(WindowsPath('C:/Users/hobo/Desktop/Proxion/kleitikon/.hypothesis/examples'))
-rootdir: C:\Users\hobo\Desktop\Proxion\kleitikon
+hypothesis profile 'default' -> database=DirectoryBasedExampleDatabase(WindowsPath('C:/Users/hobo/Desktop/Proxion/proxion-keyring/.hypothesis/examples'))
+rootdir: C:\Users\hobo\Desktop\Proxion\proxion-keyring
 plugins: anyio-4.12.0, hypothesis-6.98.11
 collecting ... collected 0 items / 1 error
 
 =================================== ERRORS ====================================
 ________________ ERROR collecting tests/test_pod_encryption.py ________________
-ImportError while importing test module 'C:\Users\hobo\Desktop\Proxion\kleitikon\tests\test_pod_encryption.py'.
+ImportError while importing test module 'C:\Users\hobo\Desktop\Proxion\proxion-keyring\tests\test_pod_encryption.py'.
 Hint: make sure your test modules/packages have valid Python names.
 Traceback:
 ..\..\..\AppData\Roaming\Python\Python312\site-packages\_pytest\python.py:507: in importtestmodule
@@ -34,7 +34,7 @@ cp\__init__.py:3: in <module>
     from .control_plane import ControlPlane, ReceiptPayload
 cp\control_plane.py:15: in <module>
     from proxion_core import (
-E   ImportError: cannot import name 'Caveat' from 'proxion_core' (C:\Users\hobo\Desktop\Proxion\kleitikon\proxion_core\__init__.py)
+E   ImportError: cannot import name 'Caveat' from 'proxion_core' (C:\Users\hobo\Desktop\Proxion\proxion-keyring\proxion_core\__init__.py)
 =========================== short test summary info ===========================
 ERROR tests/test_pod_encryption.py
 !!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!

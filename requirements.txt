@@ -1,0 +1,6 @@
+flask
+cryptography
+pyjwt
+requests
+# wireguard-tools is system dep
+# iproute2 is system dep

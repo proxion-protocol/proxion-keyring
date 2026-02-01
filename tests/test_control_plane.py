@@ -1,4 +1,4 @@
-"""Unit tests for Kleitikon Control Plane."""
+"""Unit tests for proxion-keyring Control Plane."""
 
 import pytest
 from datetime import datetime, timezone
@@ -16,7 +16,8 @@ class TestControlPlane:
     @pytest.fixture
     def cp(self):
         """Create a ControlPlane instance."""
-        signing_key = b"test-signing-key-32-bytes-long!!"
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+        signing_key = ed25519.Ed25519PrivateKey.generate()
         return ControlPlane(signing_key=signing_key)
 
     def test_mint_pt_returns_ticket_id(self, cp):
@@ -79,7 +80,7 @@ class TestControlPlane:
         assert token.count('.') == 2 # Basic structure check for JWT
         assert isinstance(receipt, ReceiptPayload)
         assert receipt.who_webid == "https://example.com/user#me"
-        assert receipt.path.startswith("/kleitikon/receipts/")
+        assert receipt.path.startswith("/proxion-keyring/receipts/")
 
     def test_redeem_pt_single_use(self, cp):
         """Ticket should only be redeemable once."""

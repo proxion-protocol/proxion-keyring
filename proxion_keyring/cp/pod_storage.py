@@ -1,4 +1,4 @@
-"""Solid Pod storage interface for Kleitikon."""
+"""Solid Pod storage interface for proxion-keyring."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ class PodClient(Protocol):
 
 
 def ensure_pod_containers(pod_client: PodClient, base_url: str) -> list[str]:
-    root = base_url.rstrip("/") + "/kleitikon/"
+    root = base_url.rstrip("/") + "/proxion-keyring/"
     paths = [
         root,
         f"{root}policies/",
@@ -30,7 +30,7 @@ def ensure_pod_containers(pod_client: PodClient, base_url: str) -> list[str]:
 
 
 def write_receipt(pod_client: PodClient, base_url: str, receipt: dict) -> str:
-    root = base_url.rstrip("/") + "/kleitikon/receipts/"
+    root = base_url.rstrip("/") + "/proxion-keyring/receipts/"
     receipt_id = receipt.get("receipt_id", "receipt")
     url = f"{root}{receipt_id}.jsonld"
     pod_client.write_json(url, receipt)

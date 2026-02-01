@@ -53,7 +53,7 @@ async function discoverStorageRoot(webId) {
   if (cachedStorageRoot) return cachedStorageRoot;
 
   // 2. Try LocalStorage (Cross-Session Persistence)
-  const stored = localStorage.getItem("kleitikon_storage_root");
+  const stored = localStorage.getItem("proxion-keyring_storage_root");
   if (stored) {
     cachedStorageRoot = stored;
     return stored;
@@ -67,7 +67,7 @@ async function discoverStorageRoot(webId) {
       if (storage) {
         log(`discovered storage: ${storage}`);
         cachedStorageRoot = storage;
-        localStorage.setItem("kleitikon_storage_root", storage);
+        localStorage.setItem("proxion-keyring_storage_root", storage);
         return storage;
       }
     }
@@ -80,7 +80,7 @@ async function discoverStorageRoot(webId) {
   if (manual) {
     const result = manual.endsWith("/") ? manual : `${manual}/`;
     cachedStorageRoot = result;
-    localStorage.setItem("kleitikon_storage_root", result);
+    localStorage.setItem("proxion-keyring_storage_root", result);
     return result;
   }
   throw new Error("No storage root available.");
@@ -141,7 +141,7 @@ async function bootstrapPod() {
 
   const storageRoot = await discoverStorageRoot(webId);
   const base = storageRoot.endsWith("/") ? storageRoot : `${storageRoot}/`;
-  const root = `${base}kleitikon/`;
+  const root = `${base}proxion-keyring/`;
 
   // Create containers (with trailing /) & Permissions
   await ensureContainer(root);
@@ -157,8 +157,8 @@ async function bootstrapPod() {
   // Write config.jsonld
   const configUrl = `${root}config/config.jsonld`;
   const configThing = buildThing({ name: "config" })
-    .addStringNoLocale("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "KleitikonConfig")
-    .addStringNoLocale("http://schema.org/identifier", "kleitikon-config")
+    .addStringNoLocale("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "proxion-keyringConfig")
+    .addStringNoLocale("http://schema.org/identifier", "proxion-keyring-config")
     .addStringNoLocale("http://purl.org/dc/terms/creator", webId)
     .addStringNoLocale("http://purl.org/dc/terms/created", new Date().toISOString())
     .build();
@@ -167,7 +167,7 @@ async function bootstrapPod() {
   // Write devices/index.jsonld
   const indexUrl = `${root}devices/index.jsonld`;
   const indexThing = buildThing({ name: "index" })
-    .addStringNoLocale("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "KleitikonDeviceIndex")
+    .addStringNoLocale("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "proxion-keyringDeviceIndex")
     .addStringNoLocale("http://purl.org/dc/terms/created", new Date().toISOString())
     .build();
   await writeJsonLd(indexUrl, indexThing, "index");
@@ -176,7 +176,7 @@ async function bootstrapPod() {
   const policyUrl = `${root}policies/policy-default.jsonld`;
   const policyJson = {
     "@context": ["https://www.w3.org/ns/solid/terms"],
-    "type": "KleitikonPolicy",
+    "type": "proxion-keyringPolicy",
     "policy_id": "pol-default",
     "applies_to": { "all_devices": true },
     "permits": [{ "action": "channel.bootstrap", "resource": "*" }]
@@ -245,13 +245,13 @@ async function registerDevice() {
   const webId = session.info.webId;
   const storageRoot = await discoverStorageRoot(webId);
   const base = storageRoot.endsWith("/") ? storageRoot : `${storageRoot}/`;
-  const root = `${base}kleitikon/`;
+  const root = `${base}proxion-keyring/`;
 
   const deviceId = `device-${crypto.randomUUID()}`;
   const deviceUrl = `${root}devices/${deviceId}.jsonld`;
 
   const deviceThing = buildThing({ name: deviceId })
-    .addStringNoLocale("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "KleitikonDevice")
+    .addStringNoLocale("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "proxion-keyringDevice")
     .addStringNoLocale("http://schema.org/identifier", deviceId)
     .addStringNoLocale("http://schema.org/name", "This Device")
     .addStringNoLocale("http://purl.org/dc/terms/created", new Date().toISOString())
@@ -296,7 +296,7 @@ async function redeemTicket() {
   log("discovering storage root...");
   const storageRoot = await discoverStorageRoot(webId);
   const base = storageRoot.endsWith("/") ? storageRoot : `${storageRoot}/`;
-  const root = `${base}kleitikon/`;
+  const root = `${base}proxion-keyring/`;
 
   // Real CP Call
   const cpBase = import.meta.env.VITE_CP_BASE_URL || "http://localhost:8787";
@@ -305,7 +305,7 @@ async function redeemTicket() {
   try {
     // 1. Get or Generate "Demo Device" Key (Persisted in IDB)
     log("opening IndexedDB...");
-    const dbName = "KleitikonDeviceStore";
+    const dbName = "proxion-keyringDeviceStore";
     const storeName = "keys";
     const db = await new Promise((resolve, reject) => {
       const req = indexedDB.open(dbName, 1);
@@ -486,7 +486,7 @@ loginBtn.addEventListener("click", async () => {
   await login({
     oidcIssuer: issuer,
     redirectUrl: window.location.href,
-    clientName: "Kleitikon",
+    clientName: "proxion-keyring",
   });
 });
 

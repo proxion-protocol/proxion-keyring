@@ -1,3 +1,3 @@
 """
-Kleitikon Client Library
+proxion-keyring Client Library
 """

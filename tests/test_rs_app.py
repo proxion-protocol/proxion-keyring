@@ -58,7 +58,7 @@ def test_bootstrap_revocation(client):
         assert "Token Revoked" in res.json["error"]
         
         # Verify CRL was fetched
-        mock_get.assert_called_with(os.getenv("KLEITIKON_CP_URL", "http://localhost:8787") + "/crl", timeout=2)
+        mock_get.assert_called_with(os.getenv("proxion-keyring_CP_URL", "http://localhost:8787") + "/crl", timeout=2)
 
 def test_bootstrap_valid_not_revoked(client):
     token = Token(

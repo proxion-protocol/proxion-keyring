@@ -1,4 +1,4 @@
-"""Device RP CLI for Kleitikon (Phase 3.5).
+"""Device RP CLI for proxion-keyring (Phase 3.5).
 
 Minimal CLI that redeems a PT and fetches connection material.
 """
@@ -88,7 +88,7 @@ def redeem_ticket(
         "token": "simulated-token-" + secrets.token_hex(8),
         "receipt": {
             "receipt_id": "rcpt-" + secrets.token_urlsafe(8),
-            "path": "/kleitikon/receipts/rcpt-xxx.jsonld",
+            "path": "/proxion-keyring/receipts/rcpt-xxx.jsonld",
         },
     }
 
@@ -100,9 +100,9 @@ def fetch_connection_material(rs_uri: str, token: str) -> dict:
     """
     print(f"[RP] Fetching connection material from {rs_uri}")
 
-    # Simulated KleitikonConnectionMaterial
+    # Simulated proxion-keyringConnectionMaterial
     return {
-        "type": "KleitikonConnectionMaterial",
+        "type": "proxion-keyringConnectionMaterial",
         "dp": "wireguard",
         "interface": "wg0",
         "client": {"address": "10.0.0.2/32", "dns": ["10.0.0.1"]},
@@ -134,17 +134,17 @@ PersistentKeepalive = 25
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Kleitikon Device RP CLI",
+        description="proxion-keyring Device RP CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python cli.py --as-uri https://kleitikon.example/cp --pt abc123
-  python cli.py --as-uri https://kleitikon.example/cp --pt abc123 --rs-uri https://rs.example
+  python cli.py --as-uri https://proxion-keyring.example/cp --pt abc123
+  python cli.py --as-uri https://proxion-keyring.example/cp --pt abc123 --rs-uri https://rs.example
         """,
     )
     parser.add_argument("--as-uri", required=True, help="Authorization Server (CP) URI")
     parser.add_argument("--pt", required=True, help="Permission Ticket from QR code")
-    parser.add_argument("--rs-uri", default="https://rs.kleitikon.example", help="Resource Server URI")
+    parser.add_argument("--rs-uri", default="https://rs.proxion-keyring.example", help="Resource Server URI")
     parser.add_argument("--aud", default="wg0", help="Audience (RS interface)")
     parser.add_argument("--output", "-o", default=None, help="Output file for WireGuard config")
 

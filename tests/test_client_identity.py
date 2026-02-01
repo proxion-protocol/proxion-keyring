@@ -6,7 +6,7 @@ from client.identity import IdentityManager
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 def test_ensure_storage_creates_dir(tmp_path):
-    storage = tmp_path / ".kleitikon"
+    storage = tmp_path / ".proxion-keyring"
     assert not storage.exists()
     
     IdentityManager(str(storage))

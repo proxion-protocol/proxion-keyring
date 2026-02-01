@@ -1,8 +1,8 @@
-# Kleitikon Design
+# proxion-keyring Design
 
 A **Solid-compatible application** for authorizing and managing **trusted device connections** using the user's Solid Pod for policy, receipts, and (optionally) audit.
 
-> **Positioning:** Kleitikon is an *app*, not a VPN product. It uses Proxion (UI spec) as the control-plane protocol and treats secure-channel establishment (e.g., WireGuard) as a pluggable data-plane instantiation.
+> **Positioning:** proxion-keyring is an *app*, not a VPN product. It uses Proxion (UI spec) as the control-plane protocol and treats secure-channel establishment (e.g., WireGuard) as a pluggable data-plane instantiation.
 
 ---
 
@@ -34,14 +34,14 @@ A **Solid-compatible application** for authorizing and managing **trusted device
 
 | Component | Description |
 |-----------|-------------|
-| **Kleitikon App (Web UI)** | Browser app. Solid login, device roster, policies, receipts. |
+| **proxion-keyring App (Web UI)** | Browser app. Solid login, device roster, policies, receipts. |
 | **Control Plane (CP)** | Proxion lifecycle: ticket issuance, redemption, token issuance. |
 | **Resource Server (RS)** | Token validation, connection material for DP. |
 | **Device Agent (RP)** | CLI on devices being paired. Redeems tickets, applies config. |
 
 ### 2.2 Trust Boundaries
 
-* User's Pod = canonical store for Kleitikon app state.
+* User's Pod = canonical store for proxion-keyring app state.
 * CP validates and writes only minimized state.
 * DP is independent; CP authorizes "bootstrap of secure channel."
 
@@ -52,7 +52,7 @@ A **Solid-compatible application** for authorizing and managing **trusted device
 Container layout under discovered storage root:
 
 ```
-/kleitikon/
+/proxion-keyring/
   config/config.jsonld
   devices/index.jsonld
   devices/<device_id>.jsonld
@@ -66,7 +66,7 @@ Container layout under discovered storage root:
 ```json
 {
   "@context": ["https://www.w3.org/ns/solid/terms"],
-  "type": "KleitikonDevice",
+  "type": "proxion-keyringDevice",
   "device_id": "did:peer:...",
   "label": "My Laptop",
   "created_at": 0,
@@ -78,7 +78,7 @@ Container layout under discovered storage root:
 
 ```json
 {
-  "type": "KleitikonPolicy",
+  "type": "proxion-keyringPolicy",
   "policy_id": "pol-...",
   "applies_to": { "device_id": "did:peer:..." },
   "permits": [{ "action": "channel.bootstrap", "resource": "rs:wg0" }],
@@ -93,7 +93,7 @@ Container layout under discovered storage root:
 
 ```json
 {
-  "type": "KleitikonReceipt",
+  "type": "proxion-keyringReceipt",
   "receipt_id": "rcpt-...",
   "who": { "webid": "https://...#me" },
   "what": { "action": "channel.bootstrap", "resource": "rs:wg0" },
@@ -120,7 +120,7 @@ RP redeems PT with PoP (Ed25519 sig over `ticket_id || aud || nonce || ts`) → 
 
 ### 4.3 Channel Bootstrap
 
-RP presents token to RS → RS validates → returns `KleitikonConnectionMaterial`.
+RP presents token to RS → RS validates → returns `proxion-keyringConnectionMaterial`.
 
 ### 4.4 Revocation
 
@@ -138,7 +138,7 @@ RO revokes via UI → CP writes revocation entry → RS enforces.
 
 ```json
 {
-  "type": "KleitikonConnectionMaterial",
+  "type": "proxion-keyringConnectionMaterial",
   "dp": "wireguard",
   "interface": "wg0",
   "client": { "address": "10.0.0.2/32", "dns": ["10.0.0.1"] },

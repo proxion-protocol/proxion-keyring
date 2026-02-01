@@ -1,138 +1,102 @@
-# Kleitikon
+# proxion-keyring
 
-**Solid-based device pairing and connection authorization.**
+**Your Universal Digital Key Ring.**
 
-Kleitikon is a Solid-compatible application that lets you pair devices and manage connection authorizations using your Solid Pod for policy, receipts, and configuration.
+proxion-keyring (Greek for "Keyring") is a privacy-first application that connects your devices instantly using your **Solid Pod** identity.
 
-## What is Kleitikon?
+> **Status:** Phase 1 Complete (Windows & Linux Support)
 
-Kleitikon (Greek for "Keyring") acts as a **Universal Keyring** for a decentralized internet. In a world where every smart device and service requires a separate account and proprietary app, Kleitikon restores control to the user.
+## Why use proxion-keyring?
 
-By using the **Solid Protocol**, Kleitikon moves the "Source of Truth" for your digital permissions from corporate clouds to your own **Personal Online Datastore (Pod)**.
-
-## What does this enable?
-
-- **Decentralized Trusted Access**: Instead of trusting a central authority to manage who can access your devices, you manage it yourself using your Pod.
-- **Privacy by Design**: Authorization receipts and policies are stored in your own Pod, encrypted and controlled by you.
-- **Interoperable Connectivity**: Because it follows a universal interface (the Proxion Specification), any device—from a smart light to a high-speed VPN—can ask Kleitikon for permission.
-
-### Practical Applications
-
-- **Privacy-First Smart Homes**: Manage your IoT devices without proprietary cloud backends. A light bulb asks your Pod for access, and you grant it once from your central Kleitikon dashboard.
-- **Zero-Config Private Networks**: Securely link your laptop to your home office files via an encrypted tunnel (like WireGuard) with a single click, authenticated by your Solid identity.
-- **Temporary Guest Access**: Safely grant a visitor 24-hour access to your local network or specific devices. The policy automatically expires and revokes access without you needing to change passwords.
-- **Secure Remote Development**: Link external mobile devices to local development servers (e.g., VS Code extensions on port 3000) securely over the internet without exposing raw ports to the public.
+*   **Zero-Config Security:** Connect your laptop to your private network or devices without managing VPNs, IP addresses, or firewalls.
+*   **"Install and Go":** No developer terminals. Just install, log in with your Solid Pod, and you're connected.
+*   **Privacy by Default:** Your data stays in your Pod. No central servers tracking you.
+*   **Secure:** Built on the **Proxion Protocol** and uses industry-standard **WireGuard®** encryption.
 
 ---
 
-## Solid Compatibility
+## 🚀 Getting Started
 
-- **Login**: Enter your OIDC issuer (IdP URL). WebID discovery is best-effort; if it fails, you'll be prompted for your issuer.
-- **Data stored in your Pod**: All app data lives under `/kleitikon/` in your Pod:
-  - `/kleitikon/config/` — App configuration
-  - `/kleitikon/devices/` — Registered device descriptors
-  - `/kleitikon/policies/` — Authorization policies
-  - `/kleitikon/receipts/` — Consent receipts
-  - `/kleitikon/audit/` — Optional audit log
-- **Data portability**: Everything is stored under `/kleitikon/` and can be removed at any time.
+### Windows (Consumer Experience)
 
----
+**Prerequisite:** A Solid Pod (e.g., from [solidcommunity.net](https://solidcommunity.net)).
 
-## Privacy
+1.  **Download & Install:**
+    *   (Coming Soon: Signed MST/EXE Installer).
+    *   For now, clone this repo and run `scripts/setup_wizard.ps1`.
+    *   This will automatically install Dependncies (WireGuard) and set up the background service.
 
-- **No third-party sharing** without your explicit consent.
-- Receipts contain only minimal metadata (token ID, action, time bounds) — no IP addresses or network endpoints.
-- Pairwise device identifiers; no global tracking.
+2.  **Run the Desktop App:**
+    *   Start **proxion-keyring Desktop**.
+    *   Log in with your Solid Pod URL.
+    *   **Done.** The app sits in your tray, managing your connections automatically.
 
----
+### Linux (Beta)
 
-## Security
-
-- **Permission Tickets (PT)**: Single-use, short TTL.
-- **Proof-of-Possession (PoP)**: Ed25519 signature required for token redemption.
-- **Revocation**: Supported via revocation lists.
-- **Fail-closed**: Any authorization failure results in denial.
-- **Default Policy**: **"Default Allow" is for Demo Mode only** (when no policy exists). Production mode will be Default Deny unless an explicit policy is present.
+1.  **Dependencies:** Ensure `wireguard-tools` and `iproute2` are installed (`apt install wireguard-tools iproute2`).
+2.  **Install:**
+    ```bash
+    pip install .
+    proxion-keyring-rs  # Run as root/sudo
+    ```
+3.  **Use:** The Linux backend fully supports the Proxion Spec for creating and managing interfaces.
 
 ---
 
-## Backends (Developer/Advanced)
+## 🛠 Features
 
-Kleitikon treats secure-channel establishment as pluggable. The initial backend is **WireGuard**:
+### 1. The "Key Ring" Model
+- **Identity = Connectivity.** If you possess the keys (Token) in your Pod, the door (Tunnel) opens automatically.
+- **Revocation:** Lost a device? Click "Revoke" in your Dashboard, and access is cut instantly.
 
-- RS validates tokens and returns connection material.
-- WireGuard mutation is disabled by default (`NO_MUTATION`).
+### 2. Native Desktop Experience (Electron)
+- **Auto-pilot:** The app manages the Python backend process for you.
+- **System Tray:** Minimizes out of your way, keeping the tunnel alive.
+- **Persistent Login:** Stay connected without constant logins.
 
----
-
-## Mesh Orchestration (Concept)
-
-Kleitikon acts as "middleware for mesh apps."
-- **Solid Pod**: Stores device roster, policies, revocations, and consent receipts (orchestrator).
-- **Control Plane**: Enforces policy to authorize tunnel formation.
-- **Data Plane (RS)**: Provisions the actual connectivity (e.g., WireGuard).
-
-Future versions will support explicit **Mesh Groups** in the Pod to orchestrate multi-device connectivity.
+### 3. Cross-Platform Backend
+- **Windows:** Uses a hidden Windows Service + Winget for dependency management.
+- **Linux:** Uses `ip` and `wg` commands with robust sudo handling.
 
 ---
 
-## How to Try It
+## 🔐 Security & Compliance
 
-### Prerequisites
+proxion-keyring is the reference implementation of the **Proxion Universal Architecture**.
 
-- A Solid Pod (e.g., from [solidcommunity.net](https://solidcommunity.net))
-- Node.js 18+ (for the web app)
-- Python 3.10+ (for CP/RS services)
+*   ✅ **Normative Invariants Verified:**
+    *   No Authority Amplification (Attenuation)
+    *   Single-Use Tickets
+    *   Finite Authority (Time-bound access)
+    *   Contextual Authorization
+    *   Audience Binding
+*   ✅ **Fail-Closed Design:** Any error results in immediate denial of access.
 
-### Run the Web App
+---
 
+## For Developers
+
+### Running from Source
+
+**1. Backend (Python)**
 ```bash
-cd app
+# Install package
+pip install -e .
+# Run Server
+python -m proxion-keyring.rs.server
+```
+
+**2. Frontend (React/Electron)**
+```bash
+cd dashboard
 npm install
-npm run dev
+npm run electron:dev  # Runs Vite + Electron together
 ```
-
-Open the displayed URL, enter your OIDC issuer, and log in.
-
-### Run the Control Plane (stub)
-
-```bash
-cd cp
-pip install -e ../proxion-core
-python -m cp
-```
-
-### Run the Resource Server (stub)
-
-```bash
-cd rs
-pip install -e ../proxion-core
-python -m rs
-```
-
----
-
-## Tested With
-
-- **Automated Tests**: Unit tests + mocked Pod routines (`pytest`, `npm test`)
-- **Integration**: Manual verification with Solid Community Server (local via Docker) — see `scripts/README.md`
-- [solidcommunity.net](https://solidcommunity.net)
-- Chrome 120+, Firefox 120+
-
-### Dependencies (pinned)
-
-- `@inrupt/solid-client-authn-browser`: 1.30.0
-- `@inrupt/solid-client`: 1.30.0
-- `vite`: 5.4.0
 
 ---
 
 ## License
-
 Apache-2.0. See [LICENSE](LICENSE).
 
 ---
-
-## Issue Tracker
-
-[GitHub Issues](https://github.com/proxion-protocol/kleitikon/issues)
+*WireGuard is a registered trademark of Jason A. Donenfeld.*

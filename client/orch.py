@@ -32,7 +32,7 @@ class Orchestrator:
         # 2. Prepare PoP
         nonce = str(time.time_ns())
         ts = int(time.time())
-        holder_fingerprint = f"kleitikon-cli-{rp_pubkey[:8]}"
+        holder_fingerprint = f"proxion-keyring-cli-{rp_pubkey[:8]}"
         
         # PoP Format: ticket_id|aud|nonce|ts
         msg = f"{ticket_id}|{aud}|{nonce}|{ts}".encode()

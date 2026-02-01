@@ -1,6 +1,6 @@
 # SCS Local Testing
 
-This directory contains resources for testing Kleitikon against a local Solid Community Server (SCS).
+This directory contains resources for testing proxion-keyring against a local Solid Community Server (SCS).
 
 ## Prerequisites
 
@@ -47,16 +47,16 @@ The server will be available at `http://localhost:3200/`.
    - Use `http://localhost:3200/` as the issuer.
    - Your Pod root will be `http://localhost:3200/user/`.
 
-3. **Run Kleitikon App**:
-   - In `kleitikon/app`, run `npm run dev`.
+3. **Run proxion-keyring App**:
+   - In `proxion-keyring/app`, run `npm run dev`.
    - Open the app.
    - Enter `http://localhost:3200/` as the OIDC Issuer.
    - Log in.
-   - You should be prompted to authorize Kleitikon.
+   - You should be prompted to authorize proxion-keyring.
 
 4. **Verify**:
-   - Check container creation: `http://localhost:3200/user/kleitikon/`.
-   - Check config: `http://localhost:3200/user/kleitikon/config/config.jsonld`.
+   - Check container creation: `http://localhost:3200/user/proxion-keyring/`.
+   - Check config: `http://localhost:3200/user/proxion-keyring/config/config.jsonld`.
 
 ## Troubleshooting
 
@@ -75,7 +75,7 @@ This test validates the **"Functional Product"** requirement: a mobile device mu
 |-----------|---------|-------------|
 | **Control Plane (CP)** | Laptop | Issues tickets, authorizes connections (Port 8787) |
 | **Resource Server (RS)** | Laptop | Bootstraps WireGuard tunnel (Port 8788) |
-| **Kleitikon App** | Laptop | User Interface for pairing |
+| **proxion-keyring App** | Laptop | User Interface for pairing |
 | **Hidden Service** | Laptop | Simulation of a private app to access (Port 3100) |
 | **Device RP Agent** | Laptop | *Temporarily runs on laptop* to act as the redeeming agent |
 | **WireGuard Client** | Mobile | Connects to the tunnel provisioned by RS |
@@ -85,15 +85,15 @@ This test validates the **"Functional Product"** requirement: a mobile device mu
 1.  **Start Services**:
     ```bash
     # Tab 1: Control Plane
-    cd kleitikon
+    cd proxion-keyring
     python -m cp.server # Runs on port 8787
 
     # Tab 2: Resource Server
-    cd kleitikon
+    cd proxion-keyring
     python -m rs.server # Runs on port 8788
 
     # Tab 3: Web App
-    cd kleitikon/app
+    cd proxion-keyring/app
     npm run dev -- --host 0.0.0.0 # Runs on port 3000 (usually) or 5173
     ```
 
@@ -109,7 +109,7 @@ This test validates the **"Functional Product"** requirement: a mobile device mu
 ### Execution
 
 1.  **Pairing**:
-    - Open Kleitikon App on your laptop.
+    - Open proxion-keyring App on your laptop.
     - Mint a ticket (or pick a static one for demo).
     - Use `agent/cli.py` (simulating the mobile device agent) to redeem:
       ```bash

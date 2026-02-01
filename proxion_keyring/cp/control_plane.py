@@ -1,4 +1,4 @@
-"""Control plane for Kleitikon (Phase 3).
+"""Control plane for proxion-keyring (Phase 3).
 
 Protocol-only: no Solid auth server-side. Browser writes receipts to Pod.
 """
@@ -48,7 +48,7 @@ class ReceiptPayload:
 
 
 class ControlPlane:
-    """Kleitikon control plane service."""
+    """proxion-keyring control plane service."""
 
     def __init__(self, signing_key: bytes, ticket_store_path: str = "tickets.json"):
         self.signing_key = signing_key
@@ -57,7 +57,7 @@ class ControlPlane:
         self._store = FileStore(ticket_store_path)
         self._policy_engine = PolicyEngine()
         self._revocation_list = RevocationList()
-        self.serializer = TokenSerializer(issuer="https://kleitikon.example/cp")
+        self.serializer = TokenSerializer(issuer="https://proxion-keyring.example/cp")
 
     def mint_pt(self) -> dict[str, str]:
         """Mint a permission ticket."""
@@ -69,7 +69,7 @@ class ControlPlane:
         })
         return {
             "ticket_id": ticket.ticket_id,
-            "as_uri": "https://kleitikon.example/cp", # TODO: dynamic
+            "as_uri": "https://proxion-keyring.example/cp", # TODO: dynamic
         }
 
     def redeem_pt(
@@ -170,7 +170,7 @@ class ControlPlane:
             issued_at=int(now.timestamp()),
             expires_at=int(exp.timestamp()),
             token_id=f"sha256:{token_id_hash}",
-            path=f"/kleitikon/receipts/{receipt_id}.jsonld",
+            path=f"/proxion-keyring/receipts/{receipt_id}.jsonld",
         )
 
         return jwt_str, receipt

@@ -1,6 +1,6 @@
 """
 Proxion Core Library
-Shared logic for Kleitikon CP, RS, and Client.
+Shared logic for proxion-keyring CP, RS, and Client.
 """
 from typing import List, Tuple, Optional, Any, Dict, Iterable, Union
 from datetime import datetime, timedelta, timezone
@@ -143,7 +143,9 @@ def validate_request(token: Token, ctx: RequestContext, proof: Any, signing_key:
     allowed = False
     for (act, res) in token.permissions:
         if act == ctx.action or act == "*":
-             if res == ctx.resource or res == "*" or res == ctx.resource.split(":")[1]: # "rs:wg0" vs "wg0" hack
+             # Safe check for "rs:wg0" vs "wg0"
+             res_suffix = ctx.resource.split(":")[1] if ":" in ctx.resource else ctx.resource
+             if res == ctx.resource or res == "*" or res == res_suffix:
                  allowed = True
                  break
     

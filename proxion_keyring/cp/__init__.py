@@ -1,4 +1,4 @@
-"""Kleitikon Control Plane package."""
+"""proxion-keyring Control Plane package."""
 
 from .control_plane import ControlPlane, ReceiptPayload
 

@@ -1,6 +1,6 @@
 # Solid App Listing Checklist
 
-Kleitikon must satisfy [Solid Project app listing criteria](https://solidproject.org/apps).
+proxion-keyring must satisfy [Solid Project app listing criteria](https://solidproject.org/apps).
 
 ---
 
@@ -10,7 +10,7 @@ Kleitikon must satisfy [Solid Project app listing criteria](https://solidproject
 |-----------|--------|-------|
 | Login with WebID + IdP of choice | ✅ | Issuer URL primary; WebID discovery best-effort |
 | Data fetched from Pods | ✅ | Policies, devices, config read from Pod |
-| Data stored in Pods | ✅ | All app data under `/kleitikon/` |
+| Data stored in Pods | ✅ | All app data under `/proxion-keyring/` |
 | Solid-spec compliant interactions | ✅ | Uses `@inrupt/solid-client` |
 
 ---

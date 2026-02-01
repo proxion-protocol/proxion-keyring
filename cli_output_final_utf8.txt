@@ -1,11 +1,11 @@
-﻿cmd : INFO: Initializing Kleitikon Client...
+﻿cmd : INFO: Initializing proxion-keyring Client...
 At line:1 char:179
-+ ... : $ticket"; cmd /c kleitikon.bat connect --ticket $ticket 
++ ... : $ticket"; cmd /c proxion-keyring.bat connect --ticket $ticket 
 --dev-polic ...
 +                 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (INFO: Initializing 
-    Kleitikon Client...:String) [], RemoteException
+    proxion-keyring Client...:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
  
 INFO: Device Identity: e4c5c404873c9656...
@@ -34,8 +34,8 @@ INFO: Received WireGuard Configuration.
     "endpoint": "127.0.0.1:51820",
     "pubkey": "demo-pubkey"
   },
-  "type": "KleitikonConnectionMaterial",
-  "wg_config_template": "# ============================================================\n# KLEITIKON CONFIG TEMPLATE\n# INSERT YOUR PRIVATE KEY LOCALLY. DO NOT SEND TO SERVER.\n# ============================================================\n\n[Interface]\nAddress = 10.0.0.3/32\nDNS = 10.0.0.1\nPrivateKey = {{CLIENT_PRIVATE_KEY}}\n\n[Peer]\nPublicKey = demo-pubkey\nEndpoint = 127.0.0.1:51820\nAllowedIPs = 10.0.0.0/24\nPersistentKeepalive = 25\n"
+  "type": "proxion-keyringConnectionMaterial",
+  "wg_config_template": "# ============================================================\n# proxion-keyring CONFIG TEMPLATE\n# INSERT YOUR PRIVATE KEY LOCALLY. DO NOT SEND TO SERVER.\n# ============================================================\n\n[Interface]\nAddress = 10.0.0.3/32\nDNS = 10.0.0.1\nPrivateKey = {{CLIENT_PRIVATE_KEY}}\n\n[Peer]\nPublicKey = demo-pubkey\nEndpoint = 127.0.0.1:51820\nAllowedIPs = 10.0.0.0/24\nPersistentKeepalive = 25\n"
 }
 
 

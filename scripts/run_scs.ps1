@@ -1,5 +1,5 @@
 # Run Solid Community Server (Data in ./data)
-# Used for local development and Kleitikon testing.
+# Used for local development and proxion-keyring testing.
 
 $Port = 3200
 $DataDir = "$(Get-Location)/data"

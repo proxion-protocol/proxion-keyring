@@ -1,11 +1,11 @@
-﻿cmd : INFO: Initializing Kleitikon Client...
+﻿cmd : INFO: Initializing proxion-keyring Client...
 At line:1 char:179
-+ ... : $ticket"; cmd /c kleitikon.bat connect --ticket $ticket 
++ ... : $ticket"; cmd /c proxion-keyring.bat connect --ticket $ticket 
 --dev-polic ...
 +                 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (INFO: Initializing 
-    Kleitikon Client...:String) [], RemoteException
+    proxion-keyring Client...:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
  
 INFO: Device Identity: e4c5c404873c9656...

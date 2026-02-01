@@ -12,7 +12,7 @@ class IdentityManager:
         if storage_dir:
             self.storage_dir = Path(storage_dir)
         else:
-            self.storage_dir = Path.home() / ".kleitikon"
+            self.storage_dir = Path.home() / ".proxion-keyring"
         
         self.identity_file = self.storage_dir / "device.key"
         self._ensure_storage()

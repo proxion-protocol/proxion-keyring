@@ -1,4 +1,4 @@
-"""Kleitikon Resource Server (Flask).
+"""proxion-keyring Resource Server (Flask).
 
 Exposes real HTTP endpoints for secure channel bootstrap.
 """
@@ -20,7 +20,7 @@ CORS(app)
 from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives import serialization
 
-cp_pub_hex = os.getenv("KLEITIKON_CP_PUBKEY", "3ccd241cffc9b3618044b97d036d8614593d8b017c340f1dee8773385517654b")
+cp_pub_hex = os.getenv("proxion-keyring_CP_PUBKEY", "3ccd241cffc9b3618044b97d036d8614593d8b017c340f1dee8773385517654b")
 try:
     CP_PUBLIC_KEY = ed25519.Ed25519PublicKey.from_public_bytes(bytes.fromhex(cp_pub_hex))
 except Exception as e:
@@ -32,23 +32,43 @@ except Exception as e:
 # We'll use a dummy bytes for ResourceServer init if it still expects symmetric (for legacy purposes)
 DUMMY_KEY = b"dummy-key-for-legacy-init"
 
+import atexit
+
 # WireGuard config
-MSG_ENDPOINT = os.getenv("KLEITIKON_WG_ENDPOINT", "127.0.0.1:51820")
-PUBKEY = os.getenv("KLEITIKON_WG_PUBKEY", "demo-pubkey")
+MSG_ENDPOINT = os.getenv("proxion-keyring_WG_ENDPOINT", "127.0.0.1:51820")
+PUBKEY = os.getenv("proxion-keyring_WG_PUBKEY", "demo-pubkey")
+INTERFACE = os.getenv("proxion-keyring_WG_INTERFACE", "wg-proxion-keyring")
 
 wg_config = WireGuardConfig(
     enabled=True,
-    interface="wg0",
+    interface=INTERFACE,
     endpoint=MSG_ENDPOINT,
     server_pubkey=PUBKEY
 )
 # Strict RS (Phase 5)
 rs = ResourceServer(signing_key=DUMMY_KEY, wg_config=wg_config)
 
+def cleanup():
+    """Remove all peers on shutdown."""
+    if not rs._mutation_enabled:
+        return
+        
+    print(f"RS: Cleaning up {len(rs._active_sessions)} sessions...")
+    for ip, session in list(rs._active_sessions.items()):
+        try:
+            pubkey = session.get("pubkey")
+            if pubkey:
+                rs.wg_peer_remove(pubkey)
+                print(f"Cleaned up peer {pubkey[:8]}...")
+        except Exception as e:
+            print(f"Error cleaning up {ip}: {e}")
+
+atexit.register(cleanup)
+
 from proxion_core.serialization import TokenSerializer
 
 # Initialize Serializer
-SERIALIZER = TokenSerializer(issuer="https://kleitikon.example/cp")
+SERIALIZER = TokenSerializer(issuer="https://proxion-keyring.example/cp")
 
 @app.route("/sessions", methods=["GET"])
 def get_sessions():
@@ -82,7 +102,7 @@ def bootstrap():
         # Sync if older than 1s (Demo speedup)
         if time.time() - last_sync > 1:
             try:
-                cp_url = os.getenv("KLEITIKON_CP_URL", "http://localhost:8787")
+                cp_url = os.getenv("proxion-keyring_CP_URL", "http://localhost:8787")
                 resp = requests.get(f"{cp_url}/crl", timeout=2)
                 if resp.status_code == 200:
                     crl_data = resp.json().get("revoked_tokens", [])

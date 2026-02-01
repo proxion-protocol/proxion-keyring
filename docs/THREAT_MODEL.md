@@ -1,4 +1,4 @@
-# Kleitikon Threat Model
+# proxion-keyring Threat Model
 
 ## Adversaries
 

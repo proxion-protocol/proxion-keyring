@@ -7,16 +7,16 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives import serialization
 
 # Config
-CP_URL = os.getenv("KLEITIKON_CP_URL", "http://127.0.0.1:8787")
-RS_URL = os.getenv("KLEITIKON_RS_URL", "http://127.0.0.1:8788")
-WEBID = os.getenv("KLEITIKON_TEST_WEBID", "http://127.0.0.1:3200/alice/profile/card#me")
+CP_URL = os.getenv("proxion-keyring_CP_URL", "http://127.0.0.1:8787")
+RS_URL = os.getenv("proxion-keyring_RS_URL", "http://127.0.0.1:8788")
+WEBID = os.getenv("proxion-keyring_TEST_WEBID", "http://127.0.0.1:3200/alice/profile/card#me")
 
 # Fixed Demo Keys (For reproducible E2E tests, but should ideally be external)
-CP_KEY = os.getenv("KLEITIKON_CP_KEY", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
-CP_PUB = os.getenv("KLEITIKON_CP_PUBKEY", "3ccd241cffc9b3618044b97d036d8614593d8b017c340f1dee8773385517654b")
+CP_KEY = os.getenv("proxion-keyring_CP_KEY", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+CP_PUB = os.getenv("proxion-keyring_CP_PUBKEY", "3ccd241cffc9b3618044b97d036d8614593d8b017c340f1dee8773385517654b")
 
 def main():
-    print(f"--- Kleitikon E2E Demo ---")
+    print(f"--- proxion-keyring E2E Demo ---")
     
     # 1. Mint Ticket (as Service)
     print(f"\n[1] Minting Ticket...")
@@ -139,7 +139,7 @@ def main():
         
         # 7b. Authorized Access (Simulated Tunnel IP)
         print(f"    Attempting authorized access (Simulated Tunnel IP: 10.0.0.3)...")
-        res = requests.get(GATEWAY_URL, headers={"X-Kleitikon-Sim-IP": "10.0.0.3"})
+        res = requests.get(GATEWAY_URL, headers={"X-proxion-keyring-Sim-IP": "10.0.0.3"})
         if res.status_code == 200 or res.status_code == 404: # 404 if mock server not running
              print(f"    Success! Gateway allowed access for authorized tunnel IP.")
         else:

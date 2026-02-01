@@ -1,4 +1,4 @@
-﻿--- Kleitikon E2E Demo ---
+﻿--- proxion-keyring E2E Demo ---
 
 [1] Minting Ticket...
     Success! Ticket ID: 9aVVBsoouGCDbwnfgU4EqrdhDLTZImDI

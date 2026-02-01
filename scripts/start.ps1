@@ -1,8 +1,8 @@
-# Start Kleitikon Full Stack
+# Start proxion-keyring Full Stack
 # Launches SCS, CP, RS, and Web App in separate windows.
 
 $Root = Get-Location
-Write-Host "Starting Kleitikon Stack from $Root..."
+Write-Host "Starting proxion-keyring Stack from $Root..."
 
 # 1. Solid Community Server (Port 3200)
 Write-Host "Launching SCS (Port 3200)..."

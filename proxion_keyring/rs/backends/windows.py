@@ -9,7 +9,7 @@ class WindowsBackend(WireGuardBackend):
     def __init__(self):
         # Locate wg.exe
         self._wg_exe = shutil.which("wg") or r"C:\Program Files\WireGuard\wg.exe"
-        self._dry_run = os.getenv("KLEITIKON_WG_DRY_RUN", "false").lower() == "true"
+        self._dry_run = os.getenv("proxion-keyring_WG_DRY_RUN", "false").lower() == "true"
         
     def _run(self, cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
         """Run command or simulate if dry_run enabled."""

@@ -8,7 +8,7 @@ class PolicyResult:
     reason: str | None = None
 
 class PolicyEngine:
-    """Evaluates Kleitikon policies (JSON-LD)."""
+    """Evaluates proxion-keyring policies (JSON-LD)."""
 
     def evaluate(self, policies: List[dict], ctx_action: str, aud: str, rp_pubkey: str) -> PolicyResult:
         """

@@ -1,7 +1,7 @@
-"""Kleitikon Identity Gateway (Phase 7).
+"""proxion-keyring Identity Gateway (Phase 7).
 
 Acts as an authorized proxy for Antigravity (Port 3000).
-Checks incoming IP against active Kleitikon sessions.
+Checks incoming IP against active proxion-keyring sessions.
 """
 
 import os
@@ -12,10 +12,10 @@ app = Flask(__name__)
 
 # Config
 ANTIGRAVITY_URL = os.getenv("ANTIGRAVITY_URL", "http://localhost:3000")
-RS_URL = os.getenv("KLEITIKON_RS_URL", "http://localhost:8788")
+RS_URL = os.getenv("proxion-keyring_RS_URL", "http://localhost:8788")
 
 def is_authorized(ip: str) -> bool:
-    """Check if the source IP has an active Kleitikon session."""
+    """Check if the source IP has an active proxion-keyring session."""
     try:
         # Query Resource Server for active sessions
         resp = requests.get(f"{RS_URL}/sessions", timeout=1)
@@ -37,13 +37,13 @@ def proxy(path):
     
     # In a real WireGuard setup, the packets come from the tunnel IP.
     # For local dev/demo, we might need a bypass or specific header.
-    if os.getenv("KLEITIKON_DEV_MODE") == "1" and request.headers.get("X-Kleitikon-Sim-IP"):
-         source_ip = request.headers.get("X-Kleitikon-Sim-IP")
+    if os.getenv("proxion-keyring_DEV_MODE") == "1" and request.headers.get("X-proxion-keyring-Sim-IP"):
+         source_ip = request.headers.get("X-proxion-keyring-Sim-IP")
 
     if not is_authorized(source_ip):
          return jsonify({
              "error": "Unauthorized Access",
-             "message": f"Kleitikon session at {source_ip} not found. Please bootstrap your tunnel.",
+             "message": f"proxion-keyring session at {source_ip} not found. Please bootstrap your tunnel.",
              "proxion_spec": "Sec 8 (Authorization Logic Failure)"
          }), 403
 
@@ -74,6 +74,6 @@ def proxy(path):
 
 if __name__ == "__main__":
     port = int(os.getenv("GATEWAY_PORT", 3001))
-    print(f"--- Kleitikon Identity Gateway ---")
+    print(f"--- proxion-keyring Identity Gateway ---")
     print(f"Proxying {ANTIGRAVITY_URL} via port {port}")
     app.run(host="127.0.0.1", port=port, debug=False)

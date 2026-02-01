@@ -1,4 +1,4 @@
-"""Kleitikon Resource Server package."""
+"""proxion-keyring Resource Server package."""
 
 from .service import ConnectionMaterial, ResourceServer, WireGuardConfig
 

@@ -1,4 +1,4 @@
-"""Unit tests for Kleitikon Resource Server."""
+"""Unit tests for proxion-keyring Resource Server."""
 
 import pytest
 import os
@@ -49,7 +49,7 @@ class TestResourceServer:
         )
         d = material.to_dict()
 
-        assert d["type"] == "KleitikonConnectionMaterial"
+        assert d["type"] == "proxion-keyringConnectionMaterial"
         assert d["dp"] == "wireguard"
         assert d["interface"] == "wg0"
         assert d["client"]["address"] == "10.0.0.2/32"

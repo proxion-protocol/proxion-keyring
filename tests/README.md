@@ -1,11 +1,11 @@
-# Kleitikon Tests
+# proxion-keyring Tests
 
 This directory contains Python unit tests for the Control Plane and Resource Server.
 
 ## Running Tests
 
 ```bash
-# From kleitikon/ directory
+# From proxion-keyring/ directory
 pytest
 ```
 

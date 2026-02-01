@@ -10,12 +10,12 @@ node_modules/
 dist/
 .DS_Store
 
-# Kleitikon
+# proxion-keyring
 app/.env
 app/dist/
 app/node_modules/
 
-# Kleitikon Data
+# proxion-keyring Data
 tickets*.json
 *.jsonld
 !test-policy.jsonld

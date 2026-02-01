@@ -1,4 +1,4 @@
-"""Kleitikon Control Plane Server (Flask).
+"""proxion-keyring Control Plane Server (Flask).
 
 Exposes real HTTP endpoints for ticket minting and redemption.
 """
@@ -22,12 +22,12 @@ CORS(app, resources={r"/*": {
 from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives import serialization
 
-cp_key_hex = os.getenv("KLEITIKON_CP_KEY")
+cp_key_hex = os.getenv("proxion-keyring_CP_KEY")
 if cp_key_hex:
     try:
         SIGNING_KEY = ed25519.Ed25519PrivateKey.from_private_bytes(bytes.fromhex(cp_key_hex))
     except Exception as e:
-        print(f"ERROR: Failed to load KLEITIKON_CP_KEY: {e}")
+        print(f"ERROR: Failed to load proxion-keyring_CP_KEY: {e}")
         SIGNING_KEY = ed25519.Ed25519PrivateKey.generate()
 else:
     # Use a fixed key for demo consistency if possible, or generate
@@ -40,7 +40,7 @@ CP_PUBKEY_HEX = SIGNING_KEY.public_key().public_bytes(
     format=serialization.PublicFormat.Raw
 ).hex()
 print(f"--- CP STARTING ---")
-print(f"KLEITIKON_CP_PUBKEY={CP_PUBKEY_HEX}")
+print(f"proxion-keyring_CP_PUBKEY={CP_PUBKEY_HEX}")
 
 cp = ControlPlane(signing_key=SIGNING_KEY, ticket_store_path="tickets_v2.json")
 
@@ -54,7 +54,7 @@ def verify_solid_token(token):
     Note: For production, this should also verify DPoP proofs if using Access Tokens.
     For this spec-comportment demo, we verify the JWT signature against the issuer's JWKS.
     """
-    if os.getenv("KLEITIKON_DEV_MODE") == "1" and token == "dev-token-bypass":
+    if os.getenv("proxion-keyring_DEV_MODE") == "1" and token == "dev-token-bypass":
         print("WARN: Using Dev Mode Auth Bypass")
         return "https://localhost:3200/test-user/profile/card#me"
 
