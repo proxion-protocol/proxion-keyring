@@ -67,3 +67,43 @@ class WindowsBackend(WireGuardBackend):
         # Split by newline and filter empty strings
         # Windows newlines might be \r\n, strip handles it
         return [p for p in result.stdout.strip().split("\n") if p]
+
+    def generate_keypair(self) -> tuple[str, str]:
+        """Generate a new private/public key pair using wg genkey | wg pubkey."""
+        # We can't easily pipe in subprocess.run without shell=True which is risky.
+        # Instead, run genkey, then run pubkey.
+        
+        # 1. Generate Private Key
+        res_priv = self._run(["genkey"])
+        if res_priv.returncode != 0:
+            raise RuntimeError(f"Failed to generate private key: {res_priv.stderr}")
+        private_key = res_priv.stdout.strip()
+        
+        # 2. Derive Public Key
+        public_key = self.get_public_from_private(private_key)
+        
+        return private_key, public_key
+
+    def get_public_from_private(self, private_key: str) -> str:
+        """Derive public key from private key using wg pubkey."""
+        # Pass private key via stdin
+        full_cmd = [self._wg_exe, "pubkey"]
+        
+        import subprocess
+        try:
+            # We must use proper subprocess.run with input
+            # If dry_run, return dummy
+            if self._dry_run:
+                print(f"WG_DRY_RUN: echo {private_key[:5]}... | wg pubkey")
+                return "DUMMY_PUBKEY_FROM_" + private_key[:5]
+
+            proc = subprocess.run(
+                full_cmd,
+                input=private_key,
+                text=True,
+                capture_output=True,
+                check=True
+            )
+            return proc.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to derive public key: {e.stderr}")

@@ -21,3 +21,11 @@ class MockBackend(WireGuardBackend):
     
     def list_peers(self, interface: str) -> list[str]:
         return self._peers.get(interface, [])
+
+    def generate_keypair(self) -> tuple[str, str]:
+        """Generate dummy keys."""
+        return "MOCK_PRIVATE_KEY", "MOCK_PUBLIC_KEY"
+
+    def get_public_from_private(self, private_key: str) -> str:
+        """Derive dummy public key."""
+        return f"MOCK_PUB_FOR_{private_key[:5]}"

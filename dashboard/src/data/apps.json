@@ -1,0 +1,748 @@
+[
+    {
+        "id": "adguard-integration",
+        "name": "AdGuard Home",
+        "category": "Security",
+        "description": "Powerful network-wide ads & trackers blocking DNS server.",
+        "icon": "shield-check",
+        "port": 3002,
+        "path": "network/adguard",
+        "logo_slug": "adguard"
+    },
+    {
+        "id": "archivebox-integration",
+        "name": "ArchiveBox",
+        "category": "Web",
+        "description": "Personal self-hosted web archive. Save any page to your Pod.",
+        "icon": "archive",
+        "port": 8000,
+        "path": "web/archive",
+        "logo_slug": "internetarchive"
+    },
+    {
+        "id": "calibre-integration",
+        "name": "Calibre-Web",
+        "category": "Knowledge",
+        "description": "Clean web interface for browsing, reading and downloading eBooks.",
+        "icon": "book",
+        "port": 8083,
+        "path": "knowledge/calibre",
+        "logo_slug": "calibre"
+    },
+    {
+        "id": "changedetection-integration",
+        "name": "ChangeDetection",
+        "category": "Web",
+        "description": "Monitor websites for content changes and get notified.",
+        "icon": "eye",
+        "port": 5000,
+        "path": "web/monitor",
+        "logo_slug": "changedetection"
+    },
+    {
+        "id": "cryptpad-integration",
+        "name": "CryptPad",
+        "category": "Productivity",
+        "description": "Collaborative office suite, end-to-end encrypted.",
+        "icon": "file-lock-2",
+        "port": 3001,
+        "path": "office/cryptpad",
+        "logo_slug": "cryptpad"
+    },
+    {
+        "id": "dashdot-integration",
+        "name": "DashDot",
+        "category": "System",
+        "description": "Beautiful, simple system statistics dashboard.",
+        "icon": "activity",
+        "port": 3012,
+        "path": "system/stats"
+    },
+    {
+        "id": "firefly-integration",
+        "name": "Firefly III",
+        "category": "Finance",
+        "description": "Personal finance manager to help you track your expenses.",
+        "icon": "wallet",
+        "port": 8080,
+        "path": "finance/firefly",
+        "logo_slug": "fireflyiii"
+    },
+    {
+        "id": "freshrss-integration",
+        "name": "FreshRSS",
+        "category": "Web",
+        "description": "Self-hosted RSS feed aggregator.",
+        "icon": "rss",
+        "port": 8080,
+        "path": "web/freshrss",
+        "logo_slug": "freshrss"
+    },
+    {
+        "id": "ghost-integration",
+        "name": "Ghost",
+        "category": "Web",
+        "description": "Professional publishing platform for writers and creators.",
+        "icon": "pen-tool",
+        "port": 2368,
+        "path": "web/ghost",
+        "logo_slug": "ghost"
+    },
+    {
+        "id": "gitea-integration",
+        "name": "Gitea",
+        "category": "Dev",
+        "description": "Painless self-hosted Git service.",
+        "icon": "git-branch",
+        "port": 3014,
+        "path": "dev/gitea",
+        "logo_slug": "gitea"
+    },
+    {
+        "id": "homarr-integration",
+        "name": "Proxion Dash",
+        "category": "System",
+        "description": "The central portal for your entire private suite.",
+        "icon": "layout",
+        "port": 3003,
+        "path": "system/dashboard",
+        "logo_slug": "homarr"
+    },
+    {
+        "id": "home-assistant-integration",
+        "name": "Home Assistant",
+        "category": "IoT",
+        "description": "Open source home automation that puts local control first.",
+        "icon": "home",
+        "port": 8123,
+        "path": "iot/ha",
+        "logo_slug": "homeassistant"
+    },
+    {
+        "id": "homebridge-integration",
+        "name": "Homebridge",
+        "category": "IoT",
+        "description": "Integrate non-HomeKit devices into Apple Home.",
+        "icon": "bridge",
+        "port": 8581,
+        "path": "iot/homebridge",
+        "logo_slug": "homebridge"
+    },
+    {
+        "id": "immich-integration",
+        "name": "Immich",
+        "category": "Media",
+        "description": "High performance self-hosted photo and video backup solution.",
+        "icon": "image",
+        "port": 2283,
+        "path": "media/immich",
+        "logo_slug": "immich"
+    },
+    {
+        "id": "jellyfin-integration",
+        "name": "Jellyfin",
+        "category": "Media",
+        "description": "The Free Software Media System.",
+        "icon": "film",
+        "port": 8096,
+        "path": "media/jellyfin",
+        "logo_slug": "jellyfin"
+    },
+    {
+        "id": "joplin-integration",
+        "name": "Joplin",
+        "category": "Knowledge",
+        "description": "Open source note-taking and to-do application.",
+        "icon": "sticky-note",
+        "port": 41184,
+        "path": "knowledge/joplin",
+        "logo_slug": "joplin"
+    },
+    {
+        "id": "mastodon-integration",
+        "name": "Mastodon",
+        "category": "Social",
+        "description": "Social networking that's not for sale.",
+        "icon": "message-circle",
+        "port": 3010,
+        "path": "social/mastodon",
+        "logo_slug": "mastodon"
+    },
+    {
+        "id": "matrix-integration",
+        "name": "Matrix (Synapse)",
+        "category": "Social",
+        "description": "An open network for secure, decentralized communication.",
+        "icon": "messages-square",
+        "port": 8008,
+        "path": "social/matrix",
+        "logo_slug": "matrix"
+    },
+    {
+        "id": "navidrome-integration",
+        "name": "Navidrome",
+        "category": "Media",
+        "description": "Modern self-hosted music server and streamer.",
+        "icon": "music",
+        "port": 4533,
+        "path": "media/navidrome",
+        "logo_slug": "navidrome"
+    },
+    {
+        "id": "nextcloud-integration",
+        "name": "Nextcloud",
+        "category": "Productivity",
+        "description": "The self-hosted productivity platform that keeps you in control.",
+        "icon": "cloud",
+        "port": 8080,
+        "path": "cloud/nextcloud",
+        "logo_slug": "nextcloud"
+    },
+    {
+        "id": "overseerr-integration",
+        "name": "Overseerr",
+        "category": "Media",
+        "description": "Request management and media discovery tool.",
+        "icon": "search",
+        "port": 5055,
+        "path": "media/requests",
+        "logo_slug": "plex"
+    },
+    {
+        "id": "paperless-integration",
+        "name": "Paperless-ngx",
+        "category": "Productivity",
+        "description": "Scan, index and archive all your physical documents.",
+        "icon": "files",
+        "port": 8000,
+        "path": "docs/paperless",
+        "logo_slug": "paperlessngx"
+    },
+    {
+        "id": "pihole-integration",
+        "name": "Pi-hole",
+        "category": "Security",
+        "description": "Network-wide Ad Blocking.",
+        "icon": "ban",
+        "port": 80,
+        "path": "network/pihole",
+        "logo_slug": "pihole"
+    },
+    {
+        "id": "sonarr-integration",
+        "name": "Sonarr",
+        "category": "Media",
+        "description": "Smart TV show management and organization.",
+        "icon": "tv",
+        "port": 8989,
+        "path": "media/tv",
+        "logo_slug": "sonarr"
+    },
+    {
+        "id": "radarr-integration",
+        "name": "Radarr",
+        "category": "Media",
+        "description": "Movie management and organization, like Sonarr but for movies.",
+        "icon": "film",
+        "port": 7878,
+        "path": "media/movies",
+        "logo_slug": "radarr"
+    },
+    {
+        "id": "lidarr-integration",
+        "name": "Lidarr",
+        "category": "Media",
+        "description": "Music collection manager and downloader.",
+        "icon": "music",
+        "port": 8686,
+        "path": "media/music",
+        "logo_slug": "lidarr"
+    },
+    {
+        "id": "prowlarr-integration",
+        "name": "Prowlarr",
+        "category": "Media",
+        "description": "Centralized indexer management for Sonarr, Radarr, and Lidarr.",
+        "icon": "search",
+        "port": 9696,
+        "path": "media/indexers",
+        "logo_slug": "prowlarr"
+    },
+    {
+        "id": "bazarr-integration",
+        "name": "Bazarr",
+        "category": "Media",
+        "description": "Subtitle automation for your media collection.",
+        "icon": "languages",
+        "port": 6767,
+        "path": "media/subtitles",
+        "logo_slug": "bazarr"
+    },
+    {
+        "id": "jellyseerr-integration",
+        "name": "Jellyseerr",
+        "category": "Media",
+        "description": "Request management and discovery portal for Jellyfin.",
+        "icon": "eye",
+        "port": 5056,
+        "path": "media/requests-jellyfin"
+    },
+    {
+        "id": "audiobookshelf-integration",
+        "name": "Audiobookshelf",
+        "category": "Media",
+        "description": "Self-hosted audiobook and podcast server.",
+        "icon": "music",
+        "port": 13378,
+        "path": "media/audiobooks",
+        "logo_slug": "audiobookshelf"
+    },
+    {
+        "id": "vikunja-integration",
+        "name": "Vikunja",
+        "category": "Productivity",
+        "description": "The open-source, self-hosted to-do app to organize your life.",
+        "icon": "check-square",
+        "port": 3456,
+        "path": "office/tasks",
+        "logo_slug": "vikunja"
+    },
+    {
+        "id": "stirling-pdf-integration",
+        "name": "Stirling-PDF",
+        "category": "Productivity",
+        "description": "Powerful local-first PDF manipulation suite.",
+        "icon": "file-text",
+        "port": 8081,
+        "path": "office/pdf-tools",
+        "logo_slug": "stirling-pdf"
+    },
+    {
+        "id": "mealie-integration",
+        "name": "Mealie",
+        "category": "Home",
+        "description": "Self-hosted recipe manager and meal planner.",
+        "icon": "utensils",
+        "port": 9925,
+        "path": "home/mealie",
+        "logo_slug": "mealie"
+    },
+    {
+        "id": "silverbullet-integration",
+        "name": "SilverBullet",
+        "category": "Knowledge",
+        "description": "Programmable personal knowledge management system.",
+        "icon": "zap",
+        "port": 3004,
+        "path": "knowledge/silverbullet",
+        "logo_slug": "silverbullet"
+    },
+    {
+        "id": "kiwix-integration",
+        "name": "Kiwix",
+        "category": "Knowledge",
+        "description": "Offline content server for Wikipedia, StackOverflow and more.",
+        "icon": "library",
+        "port": 8082,
+        "path": "knowledge/kiwix",
+        "logo_slug": "kiwix"
+    },
+    {
+        "id": "pairdrop-integration",
+        "name": "Pairdrop",
+        "category": "System",
+        "description": "Private, peer-to-peer file transfer across all devices.",
+        "icon": "share-2",
+        "port": 3005,
+        "path": "system/transfer",
+        "logo_slug": "pairdrop"
+    },
+    {
+        "id": "transmission-integration",
+        "name": "Transmission",
+        "category": "System",
+        "description": "Fast, easy, and free BitTorrent client.",
+        "icon": "download",
+        "port": 9091,
+        "path": "system/downloads",
+        "logo_slug": "transmission"
+    },
+    {
+        "id": "tautulli-integration",
+        "name": "Tautulli",
+        "category": "Media",
+        "description": "Monitor and analyze your Plex/Media server usage.",
+        "icon": "bar-chart-3",
+        "port": 8181,
+        "path": "media/plex-stats",
+        "logo_slug": "tautulli"
+    },
+    {
+        "id": "thunderbird-integration",
+        "name": "Thunderbird",
+        "category": "Social",
+        "description": "Email, calendar, and contacts with private storage.",
+        "icon": "mail",
+        "port": 0,
+        "path": "mail/thunderbird",
+        "logo_slug": "thunderbird"
+    },
+    {
+        "id": "vaultwarden-integration",
+        "name": "Vaultwarden",
+        "category": "Security",
+        "description": "Unofficial Bitwarden compatible server written in Rust.",
+        "icon": "key",
+        "port": 80,
+        "path": "security/vaultwarden",
+        "logo_slug": "vaultwarden"
+    },
+    {
+        "id": "wallabag-integration",
+        "name": "Wallabag",
+        "category": "Web",
+        "description": "Self-hostable application for saving web pages for later reading.",
+        "icon": "bookmark",
+        "port": 80,
+        "path": "web/wallabag",
+        "logo_slug": "wallabag"
+    },
+    {
+        "id": "kopia-integration",
+        "name": "Kopia",
+        "category": "Security",
+        "description": "Cross-platform, encrypted, deduplicated backup engine.",
+        "icon": "shield",
+        "port": 51515,
+        "path": "system/backups",
+        "logo_slug": "kopia"
+    },
+    {
+        "id": "pialert-integration",
+        "name": "PiAlert",
+        "category": "Security",
+        "description": "Network security monitor and inventory scanner.",
+        "icon": "shield-check",
+        "port": 20211,
+        "path": "security/pialert",
+        "logo_slug": "pi-alert"
+    },
+    {
+        "id": "readarr-integration",
+        "name": "Readarr",
+        "category": "Media",
+        "description": "Book and ebook collection manager for your suite.",
+        "icon": "book-open",
+        "port": 8787,
+        "path": "media/books",
+        "logo_slug": "readarr"
+    },
+    {
+        "id": "tdarr-integration",
+        "name": "Tdarr",
+        "category": "System",
+        "description": "Distributed media transcoding and library optimization.",
+        "icon": "zap",
+        "port": 8265,
+        "path": "media/tdarr-config",
+        "logo_slug": "tdarr"
+    },
+    {
+        "id": "kavita-integration",
+        "name": "Kavita",
+        "category": "Media",
+        "description": "Fast manga, comic, and ebook reader with a beautiful UI.",
+        "icon": "book",
+        "port": 5001,
+        "path": "media/comics"
+    },
+    {
+        "id": "searxng-integration",
+        "name": "SearXNG",
+        "category": "Web",
+        "description": "Privacy-respecting, hackable metasearch engine.",
+        "icon": "search",
+        "port": 8083,
+        "path": "web/search",
+        "logo_slug": "searxng"
+    },
+    {
+        "id": "mattermost-integration",
+        "name": "Mattermost",
+        "category": "Social",
+        "description": "Privacy-first, secure collaboration and messaging.",
+        "icon": "message-square",
+        "port": 8065,
+        "path": "social/mattermost",
+        "logo_slug": "mattermost"
+    },
+    {
+        "id": "kasm-integration",
+        "name": "Kasm Workspaces",
+        "category": "System",
+        "description": "Desktop application streaming and disposable browser sessions.",
+        "icon": "monitor",
+        "port": 6901,
+        "path": "system/workspaces",
+        "logo_slug": "kasm"
+    },
+    {
+        "id": "it-tools-integration",
+        "name": "IT-Tools",
+        "category": "System",
+        "description": "Handy tools for developers and power users.",
+        "icon": "wrench",
+        "port": 8085,
+        "path": "system/tools",
+        "logo_slug": "it-tools"
+    },
+    {
+        "id": "cyberchef-integration",
+        "name": "CyberChef",
+        "category": "System",
+        "description": "The Swiss Army Knife for data manipulation.",
+        "icon": "coffee",
+        "port": 8086,
+        "path": "system/cyberchef",
+        "logo_slug": "cyberchef"
+    },
+    {
+        "id": "jitsi-integration",
+        "name": "Jitsi Meet",
+        "category": "Social",
+        "description": "Secure, private, and encrypted video conferencing.",
+        "icon": "video",
+        "port": 8087,
+        "path": "social/jitsi",
+        "logo_slug": "jitsi"
+    },
+    {
+        "id": "monica-integration",
+        "name": "Monica PRM",
+        "category": "Social",
+        "description": "Personal relationship management tool for families and friends.",
+        "icon": "heart",
+        "port": 8088,
+        "path": "social/monica",
+        "logo_slug": "monica"
+    },
+    {
+        "id": "ghostfolio-integration",
+        "name": "Ghostfolio",
+        "category": "Finance",
+        "description": "Privacy-centric investment and net worth tracker.",
+        "icon": "line-chart",
+        "port": 3007,
+        "path": "finance/investments",
+        "logo_slug": "ghostfolio"
+    },
+    {
+        "id": "wallos-integration",
+        "name": "Wallos",
+        "category": "Finance",
+        "description": "Powerful tool for tracking your subscriptions.",
+        "icon": "credit-card",
+        "port": 8089,
+        "path": "finance/subscriptions",
+        "logo_slug": "wallos"
+    },
+    {
+        "id": "homebox-integration",
+        "name": "Homebox",
+        "category": "Home",
+        "description": "Physical asset inventory and tracking for your home.",
+        "icon": "box",
+        "port": 3100,
+        "path": "home/inventory"
+    },
+    {
+        "id": "netdata-integration",
+        "name": "Netdata",
+        "category": "System",
+        "description": "High-fidelity, real-time infrastructure monitoring.",
+        "icon": "gauge",
+        "port": 19999,
+        "path": "system/netdata",
+        "logo_slug": "netdata"
+    },
+    {
+        "id": "speedtest-tracker-integration",
+        "name": "Speedtest Tracker",
+        "category": "System",
+        "description": "Continuously track and graph your ISP performance.",
+        "icon": "arrow-up-right",
+        "port": 8090,
+        "path": "network/speedtest",
+        "logo_slug": "speedtest-tracker"
+    },
+    {
+        "id": "portainer-integration",
+        "name": "Portainer",
+        "category": "System",
+        "description": "Powerful visual management for your Docker containers.",
+        "icon": "box",
+        "port": 9000,
+        "path": "system/docker-management",
+        "logo_slug": "portainer"
+    },
+    {
+        "id": "authelia-integration",
+        "name": "Authelia",
+        "category": "Security",
+        "description": "The Master Key. SSO and 2FA protection for the entire suite.",
+        "icon": "key",
+        "port": 9091,
+        "path": "security/authelia",
+        "logo_slug": "authelia"
+    },
+    {
+        "id": "watchtower-integration",
+        "name": "Watchtower",
+        "category": "System",
+        "description": "Automatic maintenance. Keeps all your apps updated 24/7.",
+        "icon": "refresh-cw",
+        "port": 0,
+        "path": "system/watchtower",
+        "logo_slug": "watchtower"
+    },
+    {
+        "id": "syncthing-integration",
+        "name": "Syncthing",
+        "category": "System",
+        "description": "Peer-to-peer mesh sync for your files over WireGuard.",
+        "icon": "refresh-ccw",
+        "port": 8384,
+        "path": "system/syncthing",
+        "logo_slug": "syncthing"
+    },
+    {
+        "id": "filebrowser-integration",
+        "name": "FileBrowser",
+        "category": "System",
+        "description": "Visual explorer for your Proxion Drive (P:).",
+        "icon": "folder",
+        "port": 8084,
+        "path": "system/explorer",
+        "logo_slug": "filebrowser"
+    },
+    {
+        "id": "linkwarden-integration",
+        "name": "Linkwarden",
+        "category": "Web",
+        "description": "Next-gen bookmarking with PDF and screen archiving.",
+        "icon": "bookmark",
+        "port": 3006,
+        "path": "web/bookmarks",
+        "logo_slug": "linkwarden"
+    },
+    {
+        "id": "actual-integration",
+        "name": "Actual Budget",
+        "category": "Finance",
+        "description": "Fast, private, local-first personal finance manager.",
+        "icon": "wallet",
+        "port": 5006,
+        "path": "finance/budget",
+        "logo_slug": "actual-budget"
+    },
+    {
+        "id": "uptime-kuma-integration",
+        "name": "Uptime Kuma",
+        "category": "System",
+        "description": "A fancy self-hosted monitoring tool.",
+        "icon": "activity",
+        "port": 3009,
+        "path": "system/monitoring",
+        "logo_slug": "uptime-kuma"
+    },
+    {
+        "id": "steam-headless-integration",
+        "name": "Steam Headless",
+        "category": "Gaming",
+        "description": "Containerized Steam instance for remote gaming and streaming.",
+        "icon": "gamepad",
+        "port": 5800,
+        "path": "gaming/steam",
+        "logo_slug": "steam"
+    },
+    {
+        "id": "romm-integration",
+        "name": "RomM",
+        "category": "Gaming",
+        "description": "Powerful ROM manager and retro game library browser.",
+        "icon": "layout",
+        "port": 8091,
+        "path": "gaming/roms",
+        "logo_slug": "romm"
+    },
+    {
+        "id": "emulatorjs-integration",
+        "name": "EmulatorJS",
+        "category": "Gaming",
+        "description": "Retro gaming directly in your browser.",
+        "icon": "cpu",
+        "port": 3008,
+        "path": "gaming/emulators",
+        "logo_slug": "emulatorjs"
+    },
+    {
+        "id": "pterodactyl-integration",
+        "name": "Pterodactyl",
+        "category": "Gaming",
+        "description": "Professional game server management for Minecraft, Valheim, etc.",
+        "icon": "server",
+        "port": 8093,
+        "path": "gaming/servers",
+        "logo_slug": "pterodactyl"
+    },
+    {
+        "id": "lemmy-integration",
+        "name": "Lemmy",
+        "category": "Social",
+        "description": "A federated, private alternative to Reddit.",
+        "icon": "users",
+        "port": 8094,
+        "path": "social/lemmy",
+        "logo_slug": "lemmy"
+    },
+    {
+        "id": "firefox-integration",
+        "name": "Firefox (Portable)",
+        "category": "Web",
+        "description": "Containerized Firefox with profile state synced to Drive P:.",
+        "icon": "globe",
+        "port": 5801,
+        "path": "web/browser",
+        "logo_slug": "firefox"
+    },
+    {
+        "id": "bluesky-pds-integration",
+        "name": "Bluesky PDS",
+        "category": "Social",
+        "description": "Personal Data Server for the ATProtocol (Bluesky).",
+        "icon": "cloud",
+        "port": 3004,
+        "path": "web/atproto",
+        "logo_slug": "bluesky"
+    },
+    {
+        "id": "pixelfed-integration",
+        "name": "Pixelfed",
+        "category": "Social",
+        "description": "A federated, private alternative to Instagram.",
+        "icon": "camera",
+        "port": 8095,
+        "path": "social/pixelfed",
+        "logo_slug": "pixelfed"
+    },
+    {
+        "id": "wordpress-integration",
+        "name": "WordPress",
+        "category": "Web",
+        "description": "The world's most popular website builder.",
+        "icon": "globe",
+        "port": 80,
+        "path": "web/wordpress",
+        "logo_slug": "wordpress"
+    }
+]

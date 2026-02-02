@@ -2,5 +2,7 @@ flask
 cryptography
 pyjwt
 requests
+click
+qrcode[pil]
 # wireguard-tools is system dep
 # iproute2 is system dep

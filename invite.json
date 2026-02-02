@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "invitation_id": "ec4061e5-5c78-4996-8c39-c9222931b15e",
+  "issuer": {
+    "public_key": "3f7c620ffd0bac0f7d83e1d5df39ca2bba35307933543f919464aec07742d337",
+    "did": "did:key:3f7c620ffd0bac0f7d83e1d5df39ca2bba35307933543f919464aec07742d337"
+  },
+  "endpoint_hints": [
+    "udp://127.0.0.1:5000"
+  ],
+  "capabilities": [
+    {
+      "with": "stash://alice/test",
+      "can": "read",
+      "caveats": {}
+    }
+  ],
+  "created_at": 1769925275,
+  "expires_at": 1770011675,
+  "nonce": "d2da8ea7daf3f343e536ed217e0eec837fe6e5d1042e2b01e6e7087e3d08721f",
+  "challenge_marker": "aeba54319eb04cbc95238c97ecfc25cad2058ea052cb542bf44e8a3f06754bbc",
+  "signature": "3b5466b68a1656c53711876bf8eb1a82a62de588c48077c68a8730e7df0a0f90fd1502793670c8bdb1a5af2da8ab4139cf206e5a026759d52856a42d34240407"
+}

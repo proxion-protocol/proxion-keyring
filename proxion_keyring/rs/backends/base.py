@@ -57,3 +57,13 @@ class WireGuardBackend(ABC):
     def list_peers(self, interface: str) -> list[str]:
         """List public keys of all peers on an interface."""
         pass
+
+    @abstractmethod
+    def generate_keypair(self) -> tuple[str, str]:
+        """Generate a new (private_key, public_key) pair."""
+        pass
+    
+    @abstractmethod
+    def get_public_from_private(self, private_key: str) -> str:
+        """Derive public key from private key."""
+        pass
