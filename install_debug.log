@@ -1,0 +1,103 @@
+RS: Installing archivebox...
+RS: CWD=C:\Users\hobo\Desktop\Proxion\proxion-keyring
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+[Proxion] Warning: Drive P: not mounted. Storage prep skipped.
+[Proxion] archivebox installed successfully.
+
+RS: Installing archivebox...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing adguard...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing archivebox...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing adguard...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing archivebox...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing adguard...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing adguard...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing adguard...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing adguard...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing archivebox...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing calibre...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
+RS: Installing adguard...
+RS: CWD=C:\Users\hobo\Desktop\Proxion
+RS: PYTHONPATH=C:\Users\hobo\Desktop\Proxion;C:\Users\hobo\Desktop\Proxion\proxion-core\src;.;c:\Users\hobo\Desktop\Proxion\proxion-core\src
+RS: Install Output:
+
+RS: Install Error:
+C:\Python312\python.exe: Error while finding module specification for 'proxion_keyring.cli' (ModuleNotFoundError: No module named 'proxion_keyring')
+
