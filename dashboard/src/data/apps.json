@@ -15,7 +15,7 @@
         "category": "Web",
         "description": "Personal self-hosted web archive. Save any page to your Pod.",
         "icon": "archive",
-        "port": 8000,
+        "port": 8090,
         "path": "web/archive",
         "logo_slug": "internetarchive"
     },
@@ -35,7 +35,7 @@
         "category": "Web",
         "description": "Monitor websites for content changes and get notified.",
         "icon": "eye",
-        "port": 5000,
+        "port": 8091,
         "path": "web/monitor",
         "logo_slug": "changedetection"
     },
@@ -74,7 +74,7 @@
         "category": "Web",
         "description": "Self-hosted RSS feed aggregator.",
         "icon": "rss",
-        "port": 8080,
+        "port": 8084,
         "path": "web/freshrss",
         "logo_slug": "freshrss"
     },
@@ -84,7 +84,7 @@
         "category": "Web",
         "description": "Professional publishing platform for writers and creators.",
         "icon": "pen-tool",
-        "port": 2368,
+        "port": 8089,
         "path": "web/ghost",
         "logo_slug": "ghost"
     },
@@ -154,7 +154,7 @@
         "category": "Knowledge",
         "description": "Open source note-taking and to-do application.",
         "icon": "sticky-note",
-        "port": 41184,
+        "port": 22300,
         "path": "knowledge/joplin",
         "logo_slug": "joplin"
     },
@@ -194,7 +194,7 @@
         "category": "Productivity",
         "description": "The self-hosted productivity platform that keeps you in control.",
         "icon": "cloud",
-        "port": 8080,
+        "port": 8085,
         "path": "cloud/nextcloud",
         "logo_slug": "nextcloud"
     },
@@ -224,7 +224,7 @@
         "category": "Security",
         "description": "Network-wide Ad Blocking.",
         "icon": "ban",
-        "port": 80,
+        "port": 8088,
         "path": "network/pihole",
         "logo_slug": "pihole"
     },
@@ -393,7 +393,7 @@
         "category": "Security",
         "description": "Unofficial Bitwarden compatible server written in Rust.",
         "icon": "key",
-        "port": 80,
+        "port": 8086,
         "path": "security/vaultwarden",
         "logo_slug": "vaultwarden"
     },
@@ -403,7 +403,7 @@
         "category": "Web",
         "description": "Self-hostable application for saving web pages for later reading.",
         "icon": "bookmark",
-        "port": 80,
+        "port": 8081,
         "path": "web/wallabag",
         "logo_slug": "wallabag"
     },
@@ -681,7 +681,7 @@
         "category": "Gaming",
         "description": "Retro gaming directly in your browser.",
         "icon": "cpu",
-        "port": 3008,
+        "port": 8092,
         "path": "gaming/emulators",
         "logo_slug": "emulatorjs"
     },
@@ -741,7 +741,7 @@
         "category": "Web",
         "description": "The world's most popular website builder.",
         "icon": "globe",
-        "port": 80,
+        "port": 8087,
         "path": "web/wordpress",
         "logo_slug": "wordpress"
     }

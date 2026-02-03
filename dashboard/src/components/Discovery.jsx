@@ -9,7 +9,7 @@ export function Discovery({ proxionToken }) {
 
     const fetchAudit = async () => {
         try {
-            const res = await fetch("http://localhost:8788/warden/audit", {
+            const res = await fetch("http://127.0.0.1:8788/warden/audit", {
                 headers: { "Proxion-Token": proxionToken }
             });
             if (res.ok) setAudit(await res.json());
@@ -20,7 +20,7 @@ export function Discovery({ proxionToken }) {
 
     const fetchStatus = async () => {
         try {
-            const res = await fetch("http://localhost:8788/lens/status", {
+            const res = await fetch("http://127.0.0.1:8788/lens/status", {
                 headers: { "Proxion-Token": proxionToken }
             });
             if (res.ok) setStatus(await res.json());
@@ -34,7 +34,7 @@ export function Discovery({ proxionToken }) {
         if (!query) return;
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:8788/lens/search?q=${encodeURIComponent(query)}`, {
+            const res = await fetch(`http://127.0.0.1:8788/lens/search?q=${encodeURIComponent(query)}`, {
                 headers: { "Proxion-Token": proxionToken }
             });
             if (res.ok) setResults(await res.json());

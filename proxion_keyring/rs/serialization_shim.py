@@ -26,11 +26,16 @@ class TokenSerializer:
     def verify(self, token_str: str, public_key: Any, audience: str = None) -> Token:
         """Verify a JWT string using EdDSA (PyJWT) and return a Token object."""
         try:
+            options = {}
+            if audience is None:
+                options["verify_aud"] = False
+                
             payload = jwt.decode(
                 token_str, 
                 public_key, 
                 algorithms=["EdDSA"],
-                audience=audience
+                audience=audience,
+                options=options
             )
             
             permissions = [tuple(p) for p in payload.get("proxion:act", [])]

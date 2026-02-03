@@ -1,0 +1,79 @@
+{
+    "items": [
+        {
+            "type": 1,
+            "name": "AdGuard Home",
+            "notes": "Deterministically generated for Proxion Suite (adguard)",
+            "login": {
+                "username": "admin",
+                "password": "62249851454ec80d",
+                "uris": [
+                    {
+                        "match": null,
+                        "uri": "http://localhost:3002"
+                    }
+                ]
+            }
+        },
+        {
+            "type": 1,
+            "name": "ArchiveBox",
+            "notes": "Deterministically generated for Proxion Suite (archivebox)",
+            "login": {
+                "username": "admin",
+                "password": "941b003ce5309c43",
+                "uris": [
+                    {
+                        "match": null,
+                        "uri": "http://localhost:8090"
+                    }
+                ]
+            }
+        },
+        {
+            "type": 1,
+            "name": "Calibre-Web",
+            "notes": "Deterministically generated for Proxion Suite (calibre)",
+            "login": {
+                "username": "admin",
+                "password": "8b648523b406eab4",
+                "uris": [
+                    {
+                        "match": null,
+                        "uri": "http://localhost:8083"
+                    }
+                ]
+            }
+        },
+        {
+            "type": 1,
+            "name": "Vaultwarden Admin Panel",
+            "notes": "Deterministically generated for Proxion Suite (vaultwarden_admin)",
+            "login": {
+                "username": "admin",
+                "password": "dd741c0348bb840f",
+                "uris": [
+                    {
+                        "match": null,
+                        "uri": "https://localhost:8086/admin"
+                    }
+                ]
+            }
+        },
+        {
+            "type": 1,
+            "name": "Vaultwarden Master Password",
+            "notes": "Deterministically generated for Proxion Suite (vaultwarden_master)",
+            "login": {
+                "username": "admin",
+                "password": "2a3345438688d174",
+                "uris": [
+                    {
+                        "match": null,
+                        "uri": "https://localhost:8086"
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -14,6 +14,7 @@ import threading
 from .service import ResourceServer, WireGuardConfig
 from ..manager import KeyringManager
 from ..pod_proxy import PodProxyServer
+from ..identity import derive_app_password, load_or_create_identity_key
 
 # Global Manager
 manager = KeyringManager()
@@ -29,7 +30,11 @@ except ImportError:
         return Decision(allowed=True, reason="Mock Validation")
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173", "chrome-extension://*", "moz-extension://*"]}})
+CORS(app, resources={r"/*": {
+    "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173", "chrome-extension://*", "moz-extension://*"],
+    "allow_headers": ["Content-Type", "Proxion-Token", "X-Proxion-PoP"],
+    "methods": ["GET", "POST", "OPTIONS"]
+}})
 
 # Initialize Resource Server with CP's Public Key for token verification
 from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -96,7 +101,7 @@ def require_capability(action: str, resource: str):
             # 1. Extract Token from Header
             token_str = request.headers.get("Proxion-Token")
             if not token_str:
-                # Fallback for debugging browser requests if needed, but for PWA we want strict
+                print(f"RS: [401] Missing Proxion-Token for {action} on {resource}")
                 return jsonify({"error": "Missing Proxion-Token"}), 401
             
             try:
@@ -135,8 +140,8 @@ def require_capability(action: str, resource: str):
                 return f(*args, **kwargs)
             except Exception as e:
                 import traceback
-                print(f"RS: Authorization Failed: {e}")
-                traceback.print_exc()
+                print(f"RS: Authorization Failed for {action} on {resource}: {e}")
+                # traceback.print_exc()
                 return jsonify({"error": f"Authorization Failed: {str(e)}"}), 403
         return wrapper
     return decorator
@@ -490,7 +495,7 @@ def suite_status():
     import os
     import subprocess
     integrations_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../integrations"))
-    print(f"RS: Scanning integrations at {integrations_dir}")
+
 
     
     # 1. Get ALL containers (including stopped ones)
@@ -538,9 +543,12 @@ def suite_status():
 @app.route("/suite/install", methods=["POST"])
 @require_capability("manage", "system:suite")
 def suite_install():
+    print(f"RS: Received installation request for {request.json}")
     data = request.json or {}
     app_id = data.get("appId", "").replace("-integration", "")
-    if not app_id: return jsonify({"error": "Missing appId"}), 400
+    if not app_id: 
+        print("RS: Missing appId in request")
+        return jsonify({"error": "Missing appId"}), 400
     
     import subprocess
     cmd = ["python", "-m", "proxion_keyring.cli", "suite", "install", app_id]
@@ -548,15 +556,20 @@ def suite_install():
     if "adguard" in app_id.lower():
         cmd.append("--protect-host")
     
-    # Path Logic
-    keyring_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-    keyring_repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-    integrations_dir = os.path.abspath(os.path.join(keyring_repo, "integrations"))
-
-    core_src = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../proxion-core/src"))
+    # Path Logic - Ensure we point to the parent of the package
+    # __file__ is proxion_keyring/rs/server.py
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Parent of 'rs' is 'proxion_keyring', Parent of 'proxion_keyring' is the root we need in PYTHONPATH
+    package_parent = os.path.abspath(os.path.join(current_dir, "..", "..")) 
+    
+    # keyring_repo is usually the root of the project (Proxion/)
+    keyring_repo = os.path.abspath(os.path.join(package_parent, ".."))
+    
+    core_src = os.path.abspath(os.path.join(keyring_repo, "proxion-core", "src"))
     
     env = os.environ.copy()
-    env["PYTHONPATH"] = f"{keyring_root}{os.pathsep}{core_src}{os.pathsep}{env.get('PYTHONPATH', '')}"
+    # Add root of keyring and core-src to PYTHONPATH
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [package_parent, core_src, env.get("PYTHONPATH")]))
     
     def run_install():
         try:
@@ -582,6 +595,108 @@ def suite_install():
     threading.Thread(target=run_install).start()
     
     return jsonify({"status": "Installation started"}), 202
+
+@app.route("/suite/credentials/<app_id>", methods=["GET"])
+@require_capability("read", "system:credentials")
+def suite_credentials(app_id):
+    """Fetch deterministic credentials for an app."""
+    # Strip suffix if present
+    base_id = app_id.replace("-integration", "")
+    
+    # Load Identity
+    try:
+        identity_key = load_or_create_identity_key()
+        password = derive_app_password(identity_key, base_id)
+        
+        return jsonify({
+            "appId": app_id,
+            "username": "admin",
+            "password": password
+        })
+    except Exception as e:
+        print(f"RS: Error deriving credentials for {app_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/suite/icon/<app_id>", methods=["GET"])
+def suite_icon(app_id):
+    """Serve cached icon for app, falling back to CDN download."""
+    import json
+    import requests
+    from flask import send_file
+    
+    # 1. Resolve Apps JSON path
+    # server.py is in proxion_keyring/rs/ -> root is ../..
+    # dashboard is in proxion-keyring/dashboard
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    apps_json_path = os.path.join(root_dir, "dashboard", "src", "data", "apps.json")
+    
+    # 2. Find App Data
+    target_app = None
+    if os.path.exists(apps_json_path):
+        try:
+            with open(apps_json_path, 'r') as f:
+                apps = json.load(f)
+                for a in apps:
+                    if a["id"] == app_id:
+                        target_app = a
+                        break
+        except Exception as e:
+            print(f"RS: Error reading apps.json: {e}")
+            
+    if not target_app:
+        return jsonify({"error": "App not found"}), 404
+        
+    # 3. Determine Upstream URL
+    # Logic mirrors InstallationCenter.jsx
+    logo_slug = target_app.get("logo_slug")
+    base_slug = logo_slug if logo_slug else app_id.replace('-integration', '')
+    
+    # Determine extension and URL
+    # SimpleIcons is SVG, DashboardIcons is PNG
+    if logo_slug:
+        upstream_url = f"https://cdn.simpleicons.org/{logo_slug}?viewbox=auto"
+        ext = "svg"
+    else:
+        # Fallback to dashboard icons
+        upstream_url = f"https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/{base_slug}.png"
+        ext = "png"
+
+    # 4. Cache Path
+    # cache stored in proxion_keyring/static/icons (create if needed)
+    cache_dir = os.path.join(root_dir, "proxion_keyring", "static", "icons")
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    local_filename = f"{app_id}.{ext}"
+    local_path = os.path.join(cache_dir, local_filename)
+    
+    # 5. Fetch if missing
+    if not os.path.exists(local_path):
+        print(f"RS: Caching icon for {app_id} from {upstream_url}")
+        try:
+            resp = requests.get(upstream_url, timeout=5)
+            if resp.status_code == 200:
+                with open(local_path, "wb") as f:
+                    f.write(resp.content)
+            else:
+                 # Try fallback if primary failed (e.g. SimpleIcons 404 -> DashboardIcons)
+                 if logo_slug:
+                     print(f"RS: SimpleIcons failed for {app_id}, trying DashboardIcons fallback")
+                     fallback_url = f"https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/{base_slug}.png"
+                     resp_fb = requests.get(fallback_url, timeout=5)
+                     if resp_fb.status_code == 200:
+                         local_path = os.path.join(cache_dir, f"{app_id}.png") # Update extenson
+                         with open(local_path, "wb") as f:
+                             f.write(resp_fb.content)
+                     else:
+                         return jsonify({"error": "Icon not found upstream"}), 404
+                 else:
+                     return jsonify({"error": "Icon not found upstream"}), 404
+        except Exception as e:
+             print(f"RS: Error fetching icon: {e}")
+             return jsonify({"error": f"Download failed: {str(e)}"}), 502
+
+    # 6. Serve
+    return send_file(local_path)
 
 @app.route("/suite/uninstall", methods=["POST"])
 @require_capability("manage", "system:suite")
@@ -638,6 +753,35 @@ def suite_down():
     
     subprocess.Popen(cmd, cwd=keyring_root, env=env)
     return jsonify({"status": "Stopping"}), 202
+
+@app.route("/suite/sync/<app_id>", methods=["POST"])
+@require_capability("manage", "system:suite")
+def suite_sync(app_id):
+    """Force-sync credentials for an integrated app."""
+    # Strip integration suffix
+    base_id = app_id.replace("-integration", "")
+    
+    # Dynamic import attempt
+    try:
+        # Assuming the module is named after the base_id
+        import importlib
+        try:
+             module = importlib.import_module(f"proxion_keyring.rs.integrations.{base_id}")
+        except ImportError:
+             return jsonify({"error": f"No sync module found for {base_id}"}), 404
+             
+        if not hasattr(module, "sync_credentials"):
+             return jsonify({"error": "Module missing sync_credentials capability"}), 501
+             
+        success, message = module.sync_credentials()
+        if success:
+            return jsonify({"status": "Synced", "message": message}), 200
+        else:
+            return jsonify({"error": message}), 500
+            
+    except Exception as e:
+        print(f"Sync failed: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # --- Mesh Group Endpoints ---
 
@@ -705,8 +849,11 @@ def revoke_peer_endpoint():
 @app.route("/session/activate", methods=["POST"])
 def activate_session():
     """Bridge Solid session from Frontend and issue Admin Token."""
+    print("RS: Handling /session/activate request")
     # SECURITY: Restrict to Loopback for production unless we add a secondary auth layer
-    if request.remote_addr not in ["127.0.0.1", "localhost"]:
+    remote = request.remote_addr
+    if remote not in ["127.0.0.1", "localhost", "::1", "::ffff:127.0.0.1"]:
+        print(f"RS: Rejected activation from non-loopback address: {remote}")
         return jsonify({"error": "Administrative Session Activation MUST be initiated from the host loopback."}), 403
 
     data = request.json
@@ -902,6 +1049,37 @@ if __name__ == "__main__":
     # Start Pod Proxy in background
     proxy = PodProxyServer(manager)
     threading.Thread(target=proxy.run, daemon=True).start()
+
+    # Auto-Mount P: Drive (Phase 1 Experience)
+    def auto_mount():
+        import time
+        import requests
+        time.sleep(2) # Wait for RS to start
+        try:
+            # We bypass the capability check by calling the logic directly,
+            # or we could mock a token. Let's just import and call a helper.
+            print("RS: Auto-mounting P: drive (Unified Stash)...")
+            mount_point = "P:"
+            if not os.path.exists(mount_point):
+                # Correct path to proxion-fuse/mount.py relative to proxion-keyring package root
+                # server.py is in proxion_keyring/rs/
+                current_file = os.path.abspath(__file__)
+                pkg_root = os.path.dirname(os.path.dirname(current_file)) 
+                repo_root = os.path.abspath(os.path.join(pkg_root, "..", "..")) # Up 2 levels from RS/pkg
+                fuse_script = os.path.join(repo_root, "proxion-fuse", "mount.py")
+                
+                # Dropbox-style: Use a local synced folder
+                local_stash = os.path.join(repo_root, "stash")
+                if not os.path.exists(local_stash):
+                    os.makedirs(local_stash, exist_ok=True)
+                
+                cmd = ["python", fuse_script, mount_point, local_stash]
+                subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
+        except Exception as e:
+            print(f"RS: Auto-mount failed: {e}")
+
+    import subprocess
+    threading.Thread(target=auto_mount, daemon=True).start()
 
     port = int(os.getenv("PORT", 8788))
     app.run(host="127.0.0.1", port=port, debug=False)

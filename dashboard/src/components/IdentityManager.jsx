@@ -6,7 +6,7 @@ export const IdentityManager = ({ proxionToken }) => {
 
     const fetchIdentityInfo = async () => {
         try {
-            const resp = await fetch('http://localhost:8788/identity/keys', {
+            const resp = await fetch('http://127.0.0.1:8788/identity/keys', {
                 headers: { 'Proxion-Token': proxionToken }
             });
             const json = await resp.json();
