@@ -1,14 +1,19 @@
 import click
-import json
+import os
+import subprocess
 import time
+import json
 import requests
 import qrcode
 from cryptography.hazmat.primitives import serialization
 from proxion_core.federation import FederationInvite, InviteAcceptance, Capability
-import os
-import subprocess
-import time
 from proxion_keyring.identity import load_or_create_identity_key
+from proxion_keyring.os_adapter import get_adapter
+from proxion_keyring.registry import AppRegistry
+
+# Initializing Portability Layers
+adapter = get_adapter()
+registry = AppRegistry()
 
 @click.group()
 def cli():
@@ -22,45 +27,35 @@ def mesh():
 
 @mesh.command(name="dns-enable")
 def mesh_dns_enable():
-    """Point host DNS to local Proixon AdGuard (Safe)."""
-    if os.name != 'nt':
-        click.echo("This command is currently only optimized for Windows.")
+    """Point host DNS to local Proxion AdGuard (Safe)."""
+    click.echo("[Proxion] Requesting host DNS change to 127.0.0.1...")
+    
+    # Use adapter to find the active interface
+    idx = adapter.get_active_interface_index()
+    if idx is None:
+        click.echo("Error: Could not identify the active network interface.")
         return
 
-    click.echo("[Proxion] Elevating to set host DNS to 127.0.0.1...")
-    
-    # PowerShell logic to find the active internet interface and set its DNS
-    ps_cmd = (
-        "$idx = (Get-NetRoute -DestinationPrefix 0.0.0.0/0 | Select-Object -First 1).InterfaceIndex; "
-        "Set-DnsClientServerAddress -InterfaceIndex $idx -ServerAddresses 127.0.0.1"
-    )
-    
     try:
-        # Start elevated PS process
-        subprocess.run([
-            "powershell", "-Command", 
-            f"Start-Process powershell -Verb RunAs -ArgumentList '-Command \"{ps_cmd}\"'"
-        ], check=True)
-        click.echo("[Proxion] Request sent. Please approve the Windows UAC prompt.")
+        adapter.set_dns(idx, "127.0.0.1")
+        click.echo("[Proxion] Command sent. Please approve the UAC prompt if it appears.")
     except Exception as e:
-        click.echo(f"Error: Failed to request DNS change: {e}")
+        click.echo(f"Error: Failed to set DNS: {e}")
 
 @mesh.command(name="dns-disable")
 def mesh_dns_disable():
     """Reset host DNS to automatic (DHCP)."""
-    if os.name != 'nt':
+    click.echo("[Proxion] Requesting DNS reset...")
+    idx = adapter.get_active_interface_index()
+    if idx is None:
+        click.echo("Error: Could not identify the active network interface.")
         return
 
-    click.echo("[Proxion] Elevating to reset host DNS...")
-    ps_cmd = (
-        "$idx = (Get-NetRoute -DestinationPrefix 0.0.0.0/0 | Select-Object -First 1).InterfaceIndex; "
-        "Set-DnsClientServerAddress -InterfaceIndex $idx -ResetServerAddresses"
-    )
-    subprocess.run([
-        "powershell", "-Command", 
-        f"Start-Process powershell -Verb RunAs -ArgumentList '-Command \"{ps_cmd}\"'"
-    ])
-    click.echo("[Proxion] Request sent. Please approve the Windows UAC prompt.")
+    try:
+        adapter.reset_dns(idx)
+        click.echo("[Proxion] Command sent. Please approve the UAC prompt if it appears.")
+    except Exception as e:
+        click.echo(f"Error: Failed to reset DNS: {e}")
 
 @cli.group()
 def federation():
@@ -202,73 +197,15 @@ def suite_ls():
         click.echo(f"{app:<30} AVAILABLE")
 
 def _get_app_path(app_name):
-    integrations_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../integrations"))
-    app_path = os.path.join(integrations_dir, f"{app_name}-integration")
-    if not os.path.exists(app_path):
-        app_path = os.path.join(integrations_dir, app_name)
-    if os.path.exists(app_path):
-        return app_path
-    return None
+    return registry.get_app_path(app_name)
 
 def _run_docker_compose(app_name, app_path, action=["up", "-d"]):
-    """Run docker-compose with local path overrides on Windows."""
-    env = os.environ.copy()
-    
+    """Run docker-compose with platform-specific overrides."""
     # Discovery of local storage root
-    # Correct path: keyring is at /Proxion/proxion-keyring/proxion_keyring/cli.py
-    # We want /Proxion/proxion-core/storage
     cli_dir = os.path.dirname(os.path.abspath(__file__))
     local_storage = os.path.abspath(os.path.join(cli_dir, "../../proxion-core/storage")).replace("\\", "/")
     
-    cmd = ["docker-compose"]
-    
-    if os.name == 'nt':
-        # On Windows, we generate a temporary override to bypass P: drive for Docker
-        override_content = "version: '3'\nservices:\n"
-        
-        try:
-            # 1. Read existing configs to find services and volumes
-            full_content = ""
-            for cf in ["docker-compose.yml", "docker-compose.override.yml"]:
-                cf_path = os.path.join(app_path, cf)
-                if os.path.exists(cf_path):
-                    with open(cf_path, "r") as f:
-                        full_content += f.read() + "\n"
-            
-            # 2. Parse Services and their P:/ volumes
-            import re
-            # Split by service blocks (heuristic)
-            service_blocks = re.split(r"^  (\w+):", full_content, flags=re.MULTILINE)
-            # block 0 is header, then 1=name, 2=content, 3=name, 4=content...
-            for i in range(1, len(service_blocks), 2):
-                svc_name = service_blocks[i]
-                svc_body = service_blocks[i+1]
-                
-                # Find all lines with P:/
-                p_vols = re.findall(r"^[ ]+- (P:/[^ \n]+)", svc_body, re.MULTILINE)
-                if p_vols:
-                    override_content += f"  {svc_name}:\n    volumes:\n"
-                    for v in p_vols:
-                        # v is "P:/path/to/data:/internal/path"
-                        local_v = v.replace("P:/", local_storage + "/")
-                        override_content += f"      - {local_v}\n"
-                        
-                        # Ensure host directory exists (part before the :)
-                        host_part = local_v.split(":")[0]
-                        os.makedirs(host_part.replace("/", "\\"), exist_ok=True)
-            
-            tmp_override = os.path.join(app_path, "docker-compose.proxion-local.yml")
-            with open(tmp_override, "w") as f:
-                f.write(override_content)
-            
-            cmd += ["-f", "docker-compose.yml"]
-            if os.path.exists(os.path.join(app_path, "docker-compose.override.yml")):
-                cmd += ["-f", "docker-compose.override.yml"]
-            cmd += ["-f", "docker-compose.proxion-local.yml"]
-        except Exception as e:
-            print(f"[WARN] Failed to generate local override: {e}")
-
-    cmd += action
+    cmd = adapter.get_docker_compose_cmd(app_path, local_storage, action)
     return subprocess.run(cmd, cwd=app_path, capture_output=True, text=True)
 
 def _provision_app(app_name, app_path):
@@ -282,6 +219,60 @@ def _provision_app(app_name, app_path):
                 click.echo(f"[HELP] Dashboard: http://localhost:3002")
                 click.echo(f"[HELP] Username:  admin")
                 click.echo(f"[HELP] Password:  {pw}")
+        except Exception as e:
+            click.echo(f"[WARN] Failed to auto-provision {app_name}: {e}")
+    
+    elif "archivebox" in app_name:
+        try:
+            # Run the auto-setup script
+            setup_script = os.path.join(app_path, "start_archivebox.py")
+            if os.path.exists(setup_script):
+                click.echo(f"[Proxion] Configuring {app_name}...")
+                result = subprocess.run(
+                    ["python", setup_script],
+                    cwd=app_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=120  # Increased timeout for container initialization
+                )
+                # Display the output which includes credentials
+                if result.returncode == 0:
+                    click.echo(result.stdout)
+                else:
+                    click.echo(f"[WARN] Auto-setup completed with warnings:")
+                    click.echo(result.stdout)
+                    click.echo(result.stderr)
+            else:
+                click.echo(f"[WARN] Auto-setup script not found at {setup_script}")
+        except Exception as e:
+            click.echo(f"[WARN] Failed to auto-provision {app_name}: {e}")
+
+    elif "calibre" in app_name:
+        try:
+            setup_script = os.path.join(app_path, "setup_calibre.py")
+            if os.path.exists(setup_script):
+                click.echo(f"[Proxion] Configuring {app_name}...")
+                result = subprocess.run(
+                    ["python", setup_script],
+                    cwd=app_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                click.echo(result.stdout)
+                if result.returncode != 0:
+                    click.echo(f"[WARN] Setup failed: {result.stderr}")
+        except Exception as e:
+             click.echo(f"[WARN] Failed to auto-provision {app_name}: {e}")
+
+    elif "vaultwarden" in app_name:
+        try:
+            from proxion_keyring.provision_vaultwarden import provision_vaultwarden
+            res = provision_vaultwarden()
+            click.echo(f"[Proxion] Vaultwarden Security provisioned.")
+            click.echo(f"[HELP] Admin Token: {res['admin_token']}")
+            click.echo(f"[HELP] Master Pass: {res['master_password']}")
+            click.echo(f"[HELP] Dashboard:  http://localhost:8086")
         except Exception as e:
             click.echo(f"[WARN] Failed to auto-provision {app_name}: {e}")
 
@@ -298,70 +289,7 @@ def suite_install(app_name, protect_host):
 
     # 1. Ensure Drive P: exists and create subdirectory
     mount_point = "P:\\"
-    # We map app names to their subpaths. A registry would be better, but for MVP we heuristic.
-    # Actually, we can just use the app folder name or a simple map.
-    subfolders = {
-        "mastodon": "social/mastodon",
-        "immich": "media/immich",
-        "archivebox": "web/archive",
-        "changedetection": "web/monitor",
-        "adguard": "network/adguard",
-        "adguard-integration": "network/adguard",
-        "ghost": "web/ghost",
-        "homarr": "system/dashboard",
-        "dashdot": "system/stats",
-        "overseerr": "media/requests",
-        "tautulli": "media/plex-stats",
-        "transmission": "system/downloads",
-        "sonarr": "media/tv",
-        "radarr": "media/movies",
-        "lidarr": "media/music",
-        "prowlarr": "media/indexers",
-        "bazarr": "media/subtitles",
-        "jellyseerr": "media/requests-jellyfin",
-        "audiobookshelf": "media/audiobooks",
-        "vikunja": "office/tasks",
-        "stirling-pdf": "office/pdf-tools",
-        "mealie": "home/mealie",
-        "silverbullet": "knowledge/silverbullet",
-        "kiwix": "knowledge/kiwix",
-        "pairdrop": "system/transfer",
-        "readarr": "media/books",
-        "tdarr": "media/tdarr-config",
-        "kavita": "media/comics",
-        "searxng": "web/search",
-        "mattermost": "social/mattermost",
-        "kasm": "system/workspaces",
-        "it-tools": "system/tools",
-        "cyberchef": "system/cyberchef",
-        "jitsi": "social/jitsi",
-        "monica": "social/monica",
-        "ghostfolio": "finance/investments",
-        "wallos": "finance/subscriptions",
-        "homebox": "home/inventory",
-        "netdata": "system/netdata",
-        "speedtest-tracker": "network/speedtest",
-        "portainer": "system/docker-management",
-        "authelia": "security/authelia",
-        "watchtower": "system/watchtower",
-        "syncthing": "system/syncthing",
-        "filebrowser": "system/explorer",
-        "linkwarden": "web/bookmarks",
-        "actual": "finance/budget",
-        "kopia": "system/backups",
-        "steam-headless": "gaming/steam",
-        "romm": "gaming/roms",
-        "emulatorjs": "gaming/emulators",
-        "pterodactyl": "gaming/servers",
-        "homeassistant": "home/automation",
-        "lemmy": "social/lemmy",
-        "pixelfed": "social/pixelfed",
-        "firefox": "web/browser",
-        "bluesky-pds": "web/atproto",
-        "pialert": "security/pialert",
-        "uptime-kuma": "system/monitoring"
-    }
-    subpath = subfolders.get(app_name, f"apps/{app_name}")
+    subpath = registry.get_subpath(app_name)
     full_subpath = os.path.join(mount_point, subpath)
 
     if os.path.exists(mount_point):
@@ -410,11 +338,13 @@ def suite_uninstall(app_name):
     import os
     import subprocess
     
-    integrations_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../integrations"))
-
-    app_path = os.path.join(integrations_dir, f"{app_name}-integration")
+@suite.command(name="uninstall")
+@click.argument('app_name')
+def suite_uninstall(app_name):
+    """Remove an app (stop containers and remove tracker)."""
     
-    if not os.path.exists(app_path):
+    app_path = registry.get_app_path(app_name)
+    if not app_path:
         click.echo(f"Error: Application '{app_name}' folder not found.")
         return
 
@@ -534,9 +464,8 @@ def suite_down(target):
         return
 
     def stop_app(app_id):
-        folder = f"{app_id}-integration"
-        app_path = os.path.join(integrations_dir, folder)
-        if not os.path.exists(app_path):
+        app_path = registry.get_app_path(app_id)
+        if not app_path:
             return f"{app_id}: FOLDER MISSING"
         try:
             subprocess.run(["docker-compose", "down"], cwd=app_path, capture_output=True)

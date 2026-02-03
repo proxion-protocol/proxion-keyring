@@ -16,7 +16,7 @@ export const WelcomeWizard = ({ onComplete }) => {
     const runDependencyCheck = async () => {
         setChecking(true);
         try {
-            const resp = await fetch('http://localhost:8788/system/audit');
+            const resp = await fetch('http://127.0.0.1:8788/system/audit');
             const data = await resp.json();
             setDeps(data);
         } catch (err) {
@@ -34,7 +34,7 @@ export const WelcomeWizard = ({ onComplete }) => {
 
     const handleInstall = async (depKey) => {
         try {
-            const resp = await fetch('http://localhost:8788/system/install', {
+            const resp = await fetch('http://127.0.0.1:8788/system/install', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ dep: depKey })

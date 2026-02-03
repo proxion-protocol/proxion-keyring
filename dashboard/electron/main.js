@@ -1,9 +1,19 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
-const path = require('path');
-const { spawn } = require('child_process');
+import { app, BrowserWindow, Tray, Menu, ipcMain, shell } from 'electron';
+import path from 'path';
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // --- Configuration ---
 const IS_DEV = process.env.NODE_ENV === 'development';
+
+// Force local origins to be treated as secure contexts for Crypto API
+app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', 'http://localhost:8086,http://127.0.0.1:8086,http://localhost:5173');
+app.commandLine.appendSwitch('ignore-certificate-errors'); // Allow self-signed local certs for our suite
+app.commandLine.appendSwitch('user-data-dir', path.join(app.getPath('userData'), 'chrome-data')); // Help persist the flag context
+
 const PY_MODULE = 'proxion_keyring.rs.server'; // Folder 'rs' is in root
 const PY_PORT = 8788; // Port RS runs on
 
@@ -42,9 +52,15 @@ const startPythonBackend = () => {
     // NOTE: For "It Just Works", we might need to distribute the backend binary.
     // For this Dev stage, we spawn `python`.
 
+    const keyringPath = path.join(__dirname, '../../');
+    const corePath = path.join(__dirname, '../../../proxion-core/src');
+
     pyProc = spawn('python', ['-m', PY_MODULE], {
-        cwd: path.join(__dirname, '../../'), // Should be the folder containing 'proxion-keyring' package
-        env: { ...env, PYTHONPATH: path.join(__dirname, '../../') },
+        cwd: keyringPath, // Should be the folder containing 'proxion-keyring' package
+        env: {
+            ...env,
+            PYTHONPATH: [keyringPath, corePath, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter)
+        },
         stdio: 'pipe' // Capture output
     });
 
@@ -65,18 +81,26 @@ const killPythonBackend = () => {
 // --- Window Management ---
 const createWindow = () => {
     mainWindow = new BrowserWindow({
-        width: 480,
-        height: 700,
+        width: 1024,
+        height: 768,
         show: false, // Wait until ready
-        frame: false, // Custom frame look? Or standard. Let's go Standard for now, simple.
+        frame: true, // Show standard controls for desktop mode
         titleBarStyle: 'hiddenInset', // Mac style, or just standard.
         // For Native feel:
-        resizable: false,
+        resizable: true,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
+            webviewTag: true, // Enable <webview> for integrated tabs
+            preload: path.join(__dirname, 'preload.js'), // Shared preload
         },
+    });
+
+    // Special handling for webviews to use our SSO injector
+    mainWindow.webContents.on('did-attach-webview', (event, webContents) => {
+        webContents.setWindowOpenHandler((details) => {
+            return { action: 'allow' };
+        });
     });
 
     const startUrl = IS_DEV
@@ -126,9 +150,27 @@ app.whenReady().then(() => {
     createWindow();
     createTray();
 
+    // Register IPC handlers for paths
+    ipcMain.handle('get-repo-root', () => {
+        const root = path.resolve(__dirname, '../../');
+        return root.replace(/\\/g, '/');
+    });
+
+
+
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
+});
+
+// Bypass self-signed cert errors for our local vault
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    if (url.startsWith('https://localhost:8086')) {
+        event.preventDefault();
+        callback(true);
+    } else {
+        callback(false);
+    }
 });
 
 app.on('window-all-closed', () => {

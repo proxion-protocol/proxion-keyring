@@ -22,13 +22,13 @@ export function MobileApp({ session, proxionToken, peers, onLogout, onRevoke }) 
     const fetchData = async () => {
         try {
             const [w, s, r, st, i, f, int] = await Promise.all([
-                popFetch("http://localhost:8788/warden/stats").then(res => res.json()),
-                popFetch("http://localhost:8788/system/status").then(res => res.json()),
-                popFetch("http://localhost:8788/relay/status").then(res => res.json()),
-                popFetch("http://localhost:8788/storage/stats").then(res => res.json()),
-                popFetch("http://localhost:8788/identity/keys").then(res => res.json()),
-                popFetch("http://localhost:8788/federation/status").then(res => res.json()),
-                popFetch("http://localhost:8788/gateway/intents").then(res => res.json())
+                popFetch("http://127.0.0.1:8788/warden/stats").then(res => res.json()),
+                popFetch("http://127.0.0.1:8788/system/status").then(res => res.json()),
+                popFetch("http://127.0.0.1:8788/relay/status").then(res => res.json()),
+                popFetch("http://127.0.0.1:8788/storage/stats").then(res => res.json()),
+                popFetch("http://127.0.0.1:8788/identity/keys").then(res => res.json()),
+                popFetch("http://127.0.0.1:8788/federation/status").then(res => res.json()),
+                popFetch("http://127.0.0.1:8788/gateway/intents").then(res => res.json())
             ]);
             setWarden(w);
             setSystem(s);
@@ -52,7 +52,7 @@ export function MobileApp({ session, proxionToken, peers, onLogout, onRevoke }) 
     const handleMount = async () => {
         setLoading(true);
         try {
-            await popFetch("http://localhost:8788/system/mount", { method: "POST" });
+            await popFetch("http://127.0.0.1:8788/system/mount", { method: "POST" });
             fetchData();
         } finally {
             setLoading(false);
@@ -60,7 +60,7 @@ export function MobileApp({ session, proxionToken, peers, onLogout, onRevoke }) 
     };
 
     const handleResolveIntent = (intentId, approved) => {
-        popFetch("http://localhost:8788/gateway/intents/resolve", {
+        popFetch("http://127.0.0.1:8788/gateway/intents/resolve", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ intent_id: intentId, approved })

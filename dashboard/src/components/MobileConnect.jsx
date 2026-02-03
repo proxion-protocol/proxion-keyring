@@ -5,7 +5,7 @@ export function MobileConnect({ onClose }) {
     const [config, setConfig] = useState(null);
 
     useEffect(() => {
-        fetch("http://localhost:8788/onboarding-config")
+        fetch("http://127.0.0.1:8788/onboarding-config")
             .then(res => res.json())
             .then(data => {
                 const wgConfig = `[Interface]

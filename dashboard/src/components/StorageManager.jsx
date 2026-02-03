@@ -7,7 +7,7 @@ export const StorageManager = ({ proxionToken }) => {
 
     const fetchStorageStats = async () => {
         try {
-            const resp = await fetch('http://localhost:8788/storage/stats', {
+            const resp = await fetch('http://127.0.0.1:8788/storage/stats', {
                 headers: { 'Proxion-Token': proxionToken }
             });
             const json = await resp.json();
@@ -22,7 +22,7 @@ export const StorageManager = ({ proxionToken }) => {
     const handleMount = async () => {
         setMounting(true);
         try {
-            const resp = await fetch('http://localhost:8788/system/mount', {
+            const resp = await fetch('http://127.0.0.1:8788/system/mount', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

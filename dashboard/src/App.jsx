@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QRCodeCanvas as QRCode } from 'qrcode.react';
+import appsRegistry from './data/apps.json';
 import { auth, data } from './services/solid';
 import { MobileConnect } from './components/MobileConnect';
 import { MobileApp } from './components/MobileApp';
@@ -18,7 +19,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [oidcIssuer, setOidcIssuer] = useState("https://solidcommunity.net");
   const [tunnels, setTunnels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!localStorage.getItem('proxion_token') && !localStorage.getItem('local_mode'));
   const [showMobile, setShowMobile] = useState(false);
   const [peers, setPeers] = useState({});
   const [isMobileView, setIsMobileView] = useState(window.location.pathname === '/mobile');
@@ -28,15 +29,32 @@ function App() {
   const [showWizard, setShowWizard] = useState(!localStorage.getItem('onboarding_complete'));
   const [showTutorial, setShowTutorial] = useState(false);
   const [activeTab, setActiveTab] = useState('apps');
+  const [activeApps, setActiveApps] = useState([]); // [{ id, name, url, icon }]
+  const [repoRoot, setRepoRoot] = useState(null);
+
 
   // Removed auto-resize listener to allow responsive dashboard on mobile browsers
   useEffect(() => {
-    // Only check path on mount
-    setIsMobileView(window.location.pathname === '/mobile');
+    const init = async () => {
+      try {
+        // Initialize repo root for preloads
+        const root = await window.electronAPI?.getRepoRoot();
+        if (root) {
+          setRepoRoot(root);
+          window.proxion_repo_root = root; // Keep global for external scripts
+        }
+      } catch (err) {
+        console.error('Initialization error:', err);
+      } finally {
+        const params = new URLSearchParams(window.location.search);
+        setIsMobileView(params.get('view') === 'mobile' || window.location.pathname === '/mobile');
+      }
+    };
+    init();
 
     // Auto-fetch token for local development if none exists
     if (!localStorage.getItem('proxion_token')) {
-      fetch('http://localhost:8788/session/activate', {
+      fetch('http://127.0.0.1:8788/session/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ webId: 'local-dashboard', accessToken: 'auto' })
@@ -57,7 +75,7 @@ function App() {
 
   useEffect(() => {
     if (!session?.info.isLoggedIn && !isMobileView) {
-      fetch("http://localhost:8788/gateway/challenge", { method: "POST" })
+      fetch("http://127.0.0.1:8788/gateway/challenge", { method: "POST" })
         .then(res => res.json())
         .then(data => {
           setHsId(data.handshake_id);
@@ -70,7 +88,7 @@ function App() {
   useEffect(() => {
     if (hsId) {
       const poll = setInterval(() => {
-        fetch(`http://localhost:8788/gateway/poll?id=${hsId}`)
+        fetch(`http://127.0.0.1:8788/gateway/poll?id=${hsId}`)
           .then(res => {
             if (res.status === 200) return res.json();
             throw new Error("pending");
@@ -82,7 +100,7 @@ function App() {
             setSession({ info: { isLoggedIn: true, webId: data.webId || "Proxion Guest" }, guest: true });
 
             // Auto-Mount Drive P: (Dropbox-style)
-            fetch("http://localhost:8788/system/mount", {
+            fetch("http://127.0.0.1:8788/system/mount", {
               method: "POST",
               headers: { "Proxion-Token": data.proxion_token }
             }).catch(err => console.error("Auto-mount failed", err));
@@ -96,7 +114,7 @@ function App() {
   // Poll for active peers
   const fetchPeers = () => {
     if (!proxionToken) return;
-    fetch("http://localhost:8788/peers", {
+    fetch("http://127.0.0.1:8788/peers", {
       headers: { 'Proxion-Token': proxionToken }
     })
       .then(res => res.json())
@@ -108,7 +126,13 @@ function App() {
   };
 
   useEffect(() => {
+    // Safety fallback: Never stay in loading state more than 3s
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+
     auth.handleRedirect().then(async (sess) => {
+      clearTimeout(safetyTimeout);
       // Check for Local Mode restoration
       if ((!sess || !sess.info.isLoggedIn) && localStorage.getItem('local_mode') === 'true') {
         sess = {
@@ -123,7 +147,7 @@ function App() {
       if (sess && sess.info.isLoggedIn) {
         // Bridge session to backend
         try {
-          const resp = await fetch('http://localhost:8788/session/activate', {
+          const resp = await fetch('http://127.0.0.1:8788/session/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -141,7 +165,11 @@ function App() {
           console.error("Failed to activate backend session:", err);
         }
       }
+    }).catch(err => {
+      console.error("Auth handleRedirect failed:", err);
+      setLoading(false);
     });
+    return () => clearTimeout(safetyTimeout);
   }, []); // Run only on mount
 
   useEffect(() => {
@@ -150,11 +178,48 @@ function App() {
     return () => clearInterval(interval);
   }, [proxionToken]);
 
+  // Auto-populate running apps on startup
+  useEffect(() => {
+    if (!proxionToken) return;
+
+    fetch('http://127.0.0.1:8788/suite/status', {
+      headers: { 'Proxion-Token': proxionToken }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const runningApps = data.apps || {};
+        const newActiveApps = [];
+
+        Object.entries(runningApps).forEach(([appId, status]) => {
+          if (status === 'RUNNING') {
+            const appDef = appsRegistry.find(a => a.id === appId);
+            if (appDef && appDef.port && appDef.port !== 0) {
+              newActiveApps.push({
+                id: appDef.id,
+                name: appDef.name,
+                url: `http://127.0.0.1:${appDef.port}`,
+                icon: `http://127.0.0.1:8788/suite/icon/${appDef.id}`
+              });
+            }
+          }
+        });
+
+        if (newActiveApps.length > 0) {
+          setActiveApps(prev => {
+            const currentIds = new Set(prev.map(p => p.id));
+            const toAdd = newActiveApps.filter(a => !currentIds.has(a.id));
+            return [...prev, ...toAdd];
+          });
+        }
+      })
+      .catch(err => console.error("Failed to sync running apps", err));
+  }, [proxionToken]);
+
   const handleRevoke = async (pubkey) => {
     if (!window.confirm("Are you sure you want to REVOKE this device? Access will be IMMEDIATELY cut.")) return;
 
     try {
-      await fetch("http://localhost:8788/peers/revoke", {
+      await fetch("http://127.0.0.1:8788/peers/revoke", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -181,9 +246,55 @@ function App() {
     localStorage.removeItem('proxion_token');
   };
 
+  const handleOpenApp = async (app) => {
+    // Check if valid app
+    const existing = activeApps.find(a => a.id === app.id);
+    let updatedApp = existing || app;
+
+    // If app is new OR missing credentials, fetch them
+    if (!existing || !existing.credentials) {
+      let credentials = null;
+      try {
+        const resp = await fetch(`http://127.0.0.1:8788/suite/credentials/${app.id}`, {
+          headers: { 'Proxion-Token': proxionToken }
+        });
+        if (resp.ok) {
+          credentials = await resp.json();
+          console.log(`[Proxion SSO] Credentials fetched for ${app.name}`);
+        } else {
+          console.warn(`[Proxion SSO] Backend returned ${resp.status} for ${app.id}`);
+        }
+      } catch (err) {
+        console.error(`[Proxion SSO] Failed to fetch credentials:`, err);
+      }
+
+      updatedApp = { ...updatedApp, credentials };
+
+      if (existing) {
+        // Update existing in place
+        setActiveApps(prev => prev.map(a => a.id === app.id ? updatedApp : a));
+      } else {
+        // Add new
+        setActiveApps(prev => [...prev, updatedApp]);
+      }
+    }
+
+    setActiveTab(`app-${app.id}`);
+  };
+
+  const handleCloseApp = (e, appId) => {
+    e.stopPropagation();
+    const newApps = activeApps.filter(a => a.id !== appId);
+    setActiveApps(newApps);
+    if (activeTab === `app-${appId}`) {
+      setActiveTab('apps');
+    }
+  };
+
   if (loading) return (
-    <div className="center-screen">
+    <div className="center-screen" style={{ flexDirection: 'column', gap: '20px' }}>
       <div className="spinner"></div>
+      <div style={{ color: '#4c566a', fontSize: '12px', fontWeight: 'bold' }}>Initializing Sovereign Dashboard...</div>
     </div>
   );
 
@@ -285,18 +396,39 @@ function App() {
             </div>
 
             <nav className="sidebar-nav">
-              <button className={activeTab === 'apps' ? 'active' : ''} onClick={() => setActiveTab('apps')}>
-                <span className="icon">🏪</span> App Library
-              </button>
-              <button className={activeTab === 'mesh' ? 'active' : ''} onClick={() => setActiveTab('mesh')}>
-                <span className="icon">🌐</span> Mesh Relay
-              </button>
-              <button className={activeTab === 'storage' ? 'active' : ''} onClick={() => setActiveTab('storage')}>
-                <span className="icon">💽</span> Storage
-              </button>
-              <button className={activeTab === 'identity' ? 'active' : ''} onClick={() => setActiveTab('identity')}>
-                <span className="icon">🔑</span> Identity
-              </button>
+              <div className="nav-section">
+                <span className="section-label">SYSTEM</span>
+                <button className={activeTab === 'apps' ? 'active' : ''} onClick={() => setActiveTab('apps')}>
+                  <span className="icon">🏪</span> App Library
+                </button>
+                <button className={activeTab === 'mesh' ? 'active' : ''} onClick={() => setActiveTab('mesh')}>
+                  <span className="icon">🌐</span> Mesh Relay
+                </button>
+                <button className={activeTab === 'storage' ? 'active' : ''} onClick={() => setActiveTab('storage')}>
+                  <span className="icon">💽</span> Storage
+                </button>
+                <button className={activeTab === 'identity' ? 'active' : ''} onClick={() => setActiveTab('identity')}>
+                  <span className="icon">🔑</span> Identity
+                </button>
+
+              </div>
+
+              {activeApps.length > 0 && (
+                <div className="nav-section">
+                  <span className="section-label">RUNNING</span>
+                  {activeApps.map(app => (
+                    <button
+                      key={app.id}
+                      className={`app-tab ${activeTab === `app-${app.id}` ? 'active' : ''}`}
+                      onClick={() => setActiveTab(`app-${app.id}`)}
+                    >
+                      <img src={app.icon} className="icon-img" onError={(e) => e.target.style.display = 'none'} />
+                      <span className="app-name">{app.name}</span>
+                      <span className="close-x" onClick={(e) => handleCloseApp(e, app.id)}>×</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </nav>
 
             <div className="sidebar-footer">
@@ -315,9 +447,28 @@ function App() {
                   <h1>App Library</h1>
                   <p>Deploy private integrations to your suite.</p>
                 </header>
-                <InstallationCenter proxionToken={proxionToken} />
+                <InstallationCenter
+                  proxionToken={proxionToken}
+                  onOpenApp={handleOpenApp}
+                />
               </div>
             )}
+
+            {/* Render ALL active apps as hidden webviews to preserve state */}
+            {activeApps.map(app => (
+              <div
+                key={app.id}
+                className="webview-container"
+                style={{ display: activeTab === `app-${app.id}` ? 'flex' : 'none' }}
+              >
+                <webview
+                  id={`webview-${app.id}`}
+                  src={app.url}
+                  style={{ width: '100%', height: 'calc(100% - 24px)' }}
+                />
+
+              </div>
+            ))}
 
             {activeTab === 'mesh' && (
               <div className="view-container">

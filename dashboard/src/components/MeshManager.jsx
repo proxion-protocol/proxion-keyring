@@ -6,7 +6,7 @@ export function MeshManager({ proxionToken, peers }) {
     const [selectedPeer, setSelectedPeer] = useState("");
 
     const fetchGroups = () => {
-        fetch("http://localhost:8788/mesh/list", {
+        fetch("http://127.0.0.1:8788/mesh/list", {
             headers: { 'Proxion-Token': proxionToken }
         })
             .then(res => res.json())
@@ -20,7 +20,7 @@ export function MeshManager({ proxionToken, peers }) {
 
     const handleCreate = async () => {
         if (!newGroupName) return;
-        await fetch("http://localhost:8788/mesh/create", {
+        await fetch("http://127.0.0.1:8788/mesh/create", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -34,7 +34,7 @@ export function MeshManager({ proxionToken, peers }) {
 
     const handleJoin = async (groupId) => {
         if (!selectedPeer) return;
-        await fetch("http://localhost:8788/mesh/join", {
+        await fetch("http://127.0.0.1:8788/mesh/join", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

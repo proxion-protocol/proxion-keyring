@@ -7,7 +7,7 @@ export function FederationPolicy({ proxionToken }) {
     const fetchPolicies = () => {
         if (!proxionToken) return;
         setLoading(true);
-        fetch("http://localhost:8788/federation/policies", {
+        fetch("http://127.0.0.1:8788/federation/policies", {
             headers: { 'Proxion-Token': proxionToken }
         })
             .then(res => res.json())
@@ -33,7 +33,7 @@ export function FederationPolicy({ proxionToken }) {
         if (!window.confirm("Revoke this relationship? The peer will lose access immediately.")) return;
 
         try {
-            await fetch("http://localhost:8788/federation/revoke", {
+            await fetch("http://127.0.0.1:8788/federation/revoke", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
