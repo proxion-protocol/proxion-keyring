@@ -15,6 +15,7 @@ from .service import ResourceServer, WireGuardConfig
 from ..manager import KeyringManager
 from ..pod_proxy import PodProxyServer
 from ..identity import derive_app_password, load_or_create_identity_key
+from ..config import load_config, save_config
 
 # Global Manager
 manager = KeyringManager()
@@ -396,21 +397,57 @@ def system_install():
 @app.route("/system/mount", methods=["POST"])
 @require_capability("manage", "system:host")
 def system_mount():
-    """Trigger the P: drive mount (Dropbox-style)."""
+    """Trigger the P: drive mount (Dropbox-style) with pooled sources."""
     import subprocess
     mount_point = "P:"
+    
+    # Aggressively try to clear P: first
+    if os.name == 'nt':
+        subprocess.run(["subst", "P:", "/D"], capture_output=True)
+        # Also kill any existing python mount processes
+        subprocess.run(["taskkill", "/F", "/IM", "python.exe", "/FI", "WINDOWTITLE eq Proxion Unified FUSE Driver"], capture_output=True)
+
     # Only mount if not already present
     if os.path.exists(mount_point):
         return jsonify({"status": "Already Mounted", "path": mount_point}), 200
 
     fuse_script = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../proxion-fuse/mount.py"))
-    pod_path = "/stash/" 
     
-    cmd = ["python", fuse_script, mount_point, pod_path]
+    config = load_config()
+    # Format as Name|Path for the Virtual Pod driver
+    sources = [f"{s.get('name')}|{s.get('path')}" for s in config.get("stash_sources", []) if s.get("path") and os.path.exists(s.get("path"))]
+    
+    # ALWAYS ensure a local stash exists and is the primary fallback
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+    default_stash = os.path.join(repo_root, "stash")
+    if not os.path.exists(default_stash):
+        os.makedirs(default_stash, exist_ok=True)
+    
+    # Insert local stash as the very first source so it becomes self.primary_source in mount.py
+    # This avoids "Access Denied" issues when resolving the root of a physical drive
+    sources.insert(0, f"Primary_Stash|{default_stash}")
+    
+    print(f"[Backend] Initiating virtual mapping mount with sources: {sources}")
+    cmd = ["python", fuse_script, mount_point] + sources
     # Spawn in background
-    subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
+    subprocess.Popen(cmd)
     
     return jsonify({"status": "Mounting Initiated", "path": mount_point}), 202
+
+@app.route("/system/unmount", methods=["POST"])
+@require_capability("manage", "system:host")
+def system_unmount():
+    """Kill any running FUSE processes and unmount P:."""
+    import subprocess
+    if os.name == 'nt':
+        # On Windows, we just need to kill the python processes running mount.py
+        # and maybe the WinFUSE process if possible.
+        # But killing our subprocess is usually enough for the dev environment.
+        subprocess.run(["taskkill", "/F", "/IM", "python.exe", "/FI", "WINDOWTITLE eq Proxion Unified FUSE Driver"], capture_output=True)
+        # Attempt to remove the drive letter mapping if it lingers
+        subprocess.run(["subst", "P:", "/D"], capture_output=True)
+    
+    return jsonify({"status": "Unmounted"}), 200
 
 @app.route("/relay/status", methods=["GET"])
 @require_capability("read", "system:host")
@@ -431,30 +468,70 @@ def relay_status():
 @app.route("/storage/stats", methods=["GET"])
 @require_capability("read", "system:host")
 def storage_stats():
-    """Fetch metrics for the Unified P: Drive."""
+    """Fetch metrics for the Unified P: Drive (Pooled across physical disks)."""
     import shutil
-    mount_point = "P:"
-    usage = {"total": 0, "used": 0, "free": 0, "percent": 0}
+    from datetime import datetime, timezone
+    config = load_config()
+    sources = config.get("stash_sources", [])
     
-    if os.name == 'nt' and os.path.exists(mount_point):
-        try:
-            total, used, free = shutil.disk_usage(mount_point)
-            usage = {
-                "total": total,
-                "used": used,
-                "free": free,
-                "percent": (used / total) * 100
-            }
-        except:
-            pass
-            
+    pooled_usage = {"total": 0, "used": 0, "free": 0, "percent": 0}
+    active_sources_count = 0
+
+    for source in sources:
+        path = source.get("path")
+        if path and os.path.exists(path):
+            try:
+                total, used, free = shutil.disk_usage(path)
+                pooled_usage["total"] += total
+                pooled_usage["used"] += used
+                pooled_usage["free"] += free
+                active_sources_count += 1
+            except Exception as e:
+                print(f"Error checking stats for {path}: {e}")
+
+    if pooled_usage["total"] > 0:
+        pooled_usage["percent"] = (pooled_usage["used"] / pooled_usage["total"]) * 100
+
+    print(f"[Backend] Pooled stats: {pooled_usage['used']/(1024**3):.2f}GB / {pooled_usage['total']/(1024**3):.2f}GB")
+    
+    # Better mount check for Windows: check if the drive letter is actually accessible and has a label if possible
+    # We'll stick to exists for now but add a print
+    is_mounted = os.path.exists("P:")
+    print(f"[Backend] P: drive exists check: {is_mounted}")
+
     return jsonify({
-        "mount_point": mount_point,
-        "is_mounted": os.path.exists(mount_point),
-        "usage": usage,
+        "is_mounted": is_mounted,
+        "usage": pooled_usage,
+        "active_sources": active_sources_count,
         "cache_health": "OPTIMAL",
         "last_sync": datetime.now(timezone.utc).isoformat()
     }), 200
+
+@app.route("/storage/config", methods=["GET", "POST"])
+@require_capability("manage", "system:host")
+def storage_config():
+    """Get or set storage configuration (e.g. stash sources)."""
+    if request.method == "POST":
+        data = request.json
+        print(f"[Backend] Received config update request.")
+        sources = data.get("stash_sources")
+        if sources is None:
+            print("[Backend] ERROR: Missing stash_sources in payload")
+            return jsonify({"error": "Missing stash_sources"}), 400
+        
+        print(f"[Backend] Sources to save: {len(sources)}")
+        config = load_config()
+        config["stash_sources"] = sources
+        success = save_config(config)
+        
+        if success:
+            print(f"[Backend] Storage configuration synchronized successfully.")
+            return jsonify(config), 200
+        
+        print(f"[Backend] Internal error synchronizing storage configuration.")
+        return jsonify({"error": "Failed to save config"}), 500
+    
+    return jsonify(load_config()), 200
 
 @app.route("/identity/keys", methods=["GET"])
 @require_capability("manage", "fortress:identity")
@@ -1068,13 +1145,17 @@ if __name__ == "__main__":
                 repo_root = os.path.abspath(os.path.join(pkg_root, "..", "..")) # Up 2 levels from RS/pkg
                 fuse_script = os.path.join(repo_root, "proxion-fuse", "mount.py")
                 
-                # Dropbox-style: Use a local synced folder
+                config = load_config()
+                sources = [f"{s.get('name')}|{s.get('path')}" for s in config.get("stash_sources", []) if s.get("path") and os.path.exists(s.get("path"))]
+                
+                # Use local stash as primary to avoid Access Denied on drive roots
                 local_stash = os.path.join(repo_root, "stash")
                 if not os.path.exists(local_stash):
                     os.makedirs(local_stash, exist_ok=True)
+                sources.insert(0, f"Primary_Stash|{local_stash}")
                 
-                cmd = ["python", fuse_script, mount_point, local_stash]
-                subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
+                cmd = ["python", fuse_script, mount_point] + sources
+                subprocess.Popen(cmd)
         except Exception as e:
             print(f"RS: Auto-mount failed: {e}")
 
