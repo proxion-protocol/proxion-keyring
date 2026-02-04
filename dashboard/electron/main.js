@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog } from 'electron';
 import path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
@@ -25,8 +25,7 @@ let pyProc = null;
 // --- Backend Management ---
 const startPythonBackend = () => {
     if (pyProc) return;
-
-    console.log('Starting Python Backend...');
+    console.log('[Main]: Starting Python Backend...');
 
     // We assume the user has run the setup wizard, so Environment variables are set globally?
     // Or we might need to set them here.
@@ -92,7 +91,7 @@ const createWindow = () => {
             nodeIntegration: false,
             contextIsolation: true,
             webviewTag: true, // Enable <webview> for integrated tabs
-            preload: path.join(__dirname, 'preload.js'), // Shared preload
+            preload: path.join(__dirname, 'preload.cjs'), // Use join instead of resolve
         },
     });
 
@@ -145,18 +144,30 @@ const createTray = () => {
 };
 
 // --- Lifecycle ---
+// Register IPC handlers IMMEDIATELEY
+ipcMain.handle('get-repo-root', () => {
+    const root = path.resolve(__dirname, '../../');
+    return root.replace(/\\/g, '/');
+});
+
+ipcMain.handle('select-directory', async () => {
+    console.log("[Main]: select-directory handler INVOKED");
+    if (!mainWindow) {
+        console.error("[Main]: mainWindow is NULL during showOpenDialog");
+        return null;
+    }
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'dontAskAfterLastRelease']
+    });
+    console.log(`[Main]: Dialog result - Canceled: ${canceled}, Path: ${filePaths?.[0]}`);
+    if (canceled) return null;
+    return filePaths[0];
+});
+
 app.whenReady().then(() => {
     startPythonBackend();
     createWindow();
     createTray();
-
-    // Register IPC handlers for paths
-    ipcMain.handle('get-repo-root', () => {
-        const root = path.resolve(__dirname, '../../');
-        return root.replace(/\\/g, '/');
-    });
-
-
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();

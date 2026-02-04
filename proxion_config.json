@@ -1,0 +1,15 @@
+{
+  "stash_sources": [
+    {
+      "name": "Default Stash",
+      "path": "/stash/",
+      "primary": true
+    },
+    {
+      "id": "1770180419897",
+      "name": "E: Storage",
+      "path": "E:/",
+      "primary": false
+    }
+  ]
+}
