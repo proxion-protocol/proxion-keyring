@@ -410,6 +410,9 @@ function App() {
                 <button className={activeTab === 'identity' ? 'active' : ''} onClick={() => setActiveTab('identity')}>
                   <span className="icon">🔑</span> Identity
                 </button>
+                <button className={activeTab === 'containers' ? 'active' : ''} onClick={() => setActiveTab('containers')}>
+                  <span className="icon">🐳</span> Containers
+                </button>
 
               </div>
 
@@ -527,6 +530,16 @@ function App() {
                 </div>
 
                 <FederationPolicy proxionToken={proxionToken} />
+              </div>
+            )}
+
+            {activeTab === 'containers' && (
+              <div className="view-container" style={{ height: '100%', padding: '0' }}>
+                <iframe
+                  src="http://127.0.0.1:9001"
+                  style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
+                  title="Portainer"
+                />
               </div>
             )}
           </main>
