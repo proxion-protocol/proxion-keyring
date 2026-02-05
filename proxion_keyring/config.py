@@ -9,7 +9,8 @@ CONFIG_PATH = os.path.join(REPO_ROOT, "proxion_config.json")
 DEFAULT_CONFIG = {
     "stash_sources": [
         {"name": "Default Stash", "path": "/stash/", "primary": True}
-    ]
+    ],
+    "pod_local_root": os.path.abspath(os.path.join(REPO_ROOT, "stash"))
 }
 
 def load_config():

@@ -1,0 +1,93 @@
+﻿python : C:\Users\hobo\AppData\Roaming\Python\Python312\site-packag
+es\werkzeug\routing\rules.py:726: DeprecationWarning: ast.Str is 
+deprecated and will be removed in Python 3.14; use ast.Constant 
+instead
+At line:1 char:156
++ ... xion-fuse"; python 
+C:\Users\hobo\Desktop\Proxion\proxion-keyring\test ...
++                 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\hobo\A...ons 
+   tant instead:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  parts = parts or [ast.Str("")]
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:723: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+  _convert(elem) if is_dynamic else ast.Str(s=elem)
+C:\Python312\Lib\ast.py:587: DeprecationWarning: Attribute s is 
+deprecated and will be removed in Python 3.14; use value instead
+  return Constant(*args, **kwargs)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:730: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+  if isinstance(p, ast.Str) and isinstance(ret[-1], ast.Str):
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:731: DeprecationWarning: Attribute s is 
+deprecated and will be removed in Python 3.14; use value instead
+  ret[-1] = ast.Str(ret[-1].s + p.s)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:731: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+  ret[-1] = ast.Str(ret[-1].s + p.s)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:767: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+  func_ast.args.defaults.append(ast.Str(""))
+[Config] Loading from: C:\Users\hobo\Desktop\Proxion\proxion-keyring\proxion_config.json
+Keyring: Pod Local Root aimed at: C:\Users\hobo\Desktop\Proxion\proxion-keyring\stash
+Warden: Fortress perimeter secured with 75631 blocked domains.
+[Lens] Starting global scan...
+Pod Proxy running on http://0.0.0.0:18095
+ * Serving Flask app 'proxion_keyring.pod_proxy'
+ * Debug mode: off
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\serving.py:718: ResourceWarning: unclosed <socket.socket 
+fd=696, family=2, type=1, proto=0>
+  self.socket = socket.fromfd(fd, address_family, 
+socket.SOCK_STREAM)
+ResourceWarning: Enable tracemalloc to get the object allocation 
+traceback
+WARNING: This is a development server. Do not use it in a 
+production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:18095
+ * Running on http://192.168.1.101:18095
+Press CTRL+C to quit
+127.0.0.1 - - [05/Feb/2026 02:13:46] "POST /auth/stash_login 
+HTTP/1.1" 200 -
+127.0.0.1 - - [05/Feb/2026 02:13:46] "GET /pod/ HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [05/Feb/2026 02:13:46] "GET /pod/ 
+HTTP/1.1" 200 -
+.127.0.0.1 - - [05/Feb/2026 02:13:46] "GET /pod/stash HTTP/1.1" 
+200 -
+INFO:werkzeug:127.0.0.1 - - [05/Feb/2026 02:13:46] "GET /pod/stash 
+HTTP/1.1" 200 -
+.127.0.0.1 - - [05/Feb/2026 02:13:46] "GET /pod/cloud HTTP/1.1" 
+200 -
+INFO:werkzeug:127.0.0.1 - - [05/Feb/2026 02:13:46] "GET /pod/cloud 
+HTTP/1.1" 200 -
+.127.0.0.1 - - [05/Feb/2026 02:13:46] "GET 
+/pod/cloud/cloud_data.txt HTTP/1.1" 404 -
+INFO:werkzeug:127.0.0.1 - - [05/Feb/2026 02:13:46] "[33mGET 
+/pod/cloud/cloud_data.txt HTTP/1.1[0m" 404 -
+F
+===================================================================
+===
+FAIL: test_04_remote_data_fetch 
+(__main__.TestPodProxyHybrid.test_04_remote_data_fetch)
+Verify fetching data from mock remote provider.
+-------------------------------------------------------------------
+---
+Traceback (most recent call last):
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\tests\test_po
+d_proxy_hybrid.py", line 67, in test_04_remote_data_fetch
+    self.assertEqual(resp.status_code, 200)
+AssertionError: 404 != 200
+
+-------------------------------------------------------------------
+---
+Ran 4 tests in 3.104s
+
+FAILED (failures=1)

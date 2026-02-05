@@ -21,8 +21,14 @@ class OSAdapter(ABC):
         pass
 
     @abstractmethod
+    @abstractmethod
     def get_docker_compose_cmd(self, app_path, local_storage, action=["up", "-d"]):
         """Return the base docker-compose command with necessary overrides."""
+        pass
+
+    @abstractmethod
+    def check_docker_health(self):
+        """Check for common Docker misconfigurations that block Proxion."""
         pass
 
 class WindowsAdapter(OSAdapter):
@@ -95,6 +101,38 @@ class WindowsAdapter(OSAdapter):
             # Fallback to standard if override fails
             return ["docker-compose", "up", "-d"]
 
+    def check_docker_health(self):
+        """Verify Docker Desktop proxy settings on Windows."""
+        import json
+        settings_path = os.path.expandvars(r"%APPDATA%\Docker\settings.json")
+        results = {"status": "PASS", "warnings": []}
+        
+        if not os.path.exists(settings_path):
+            return results # Not Docker Desktop?
+            
+        try:
+            with open(settings_path, "r") as f:
+                settings = json.load(f)
+                
+            proxy_mode = settings.get("proxyHttpMode", "system")
+            transparent_proxy = settings.get("vpnKitTransparentProxy", False)
+            
+            if transparent_proxy:
+                results["status"] = "WARN"
+                results["warnings"].append("vpnKitTransparentProxy is ACTIVE. This may block Docker pulls if a VPN is used.")
+                
+            if proxy_mode == "system":
+                # Check if host actually has a system proxy
+                res = subprocess.run(["netsh", "winhttp", "show", "proxy"], capture_output=True, text=True)
+                if "Direct access" not in res.stdout:
+                    results["status"] = "WARN"
+                    results["warnings"].append("System Proxy detected. Docker is inheriting this, which may cause timeouts.")
+                    
+        except Exception as e:
+            results["warnings"].append(f"Failed to audit Docker settings: {e}")
+            
+        return results
+
 class LinuxAdapter(OSAdapter):
     def get_active_interface_index(self):
         # Heuristic using ip route
@@ -116,6 +154,9 @@ class LinuxAdapter(OSAdapter):
         # Linux can typically mount FUSE drives directly, so no override needed
         return ["docker-compose"] + action
 
+    def check_docker_health(self):
+        return {"status": "PASS", "warnings": []}
+
 class MacAdapter(OSAdapter):
     def get_active_interface_index(self):
         # On Mac, we identify the service name for networksetup
@@ -136,6 +177,9 @@ class MacAdapter(OSAdapter):
     def get_docker_compose_cmd(self, app_path, local_storage, action=["up", "-d"]):
         # Mac, like Linux, can usually see FUSE mounts via macFUSE directly
         return ["docker-compose"] + action
+
+    def check_docker_health(self):
+        return {"status": "PASS", "warnings": []}
 
 def get_adapter():
     if os.name == 'nt':

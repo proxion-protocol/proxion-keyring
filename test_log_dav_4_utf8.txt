@@ -1,0 +1,48 @@
+﻿python : C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\we
+rkzeug\routing\rules.py:726: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+At line:1 char:156
++ ... xion-fuse"; python 
+C:\Users\hobo\Desktop\Proxion\proxion-keyring\test ...
++                 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\hobo\A...onstant  
+   instead:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  parts = parts or [ast.Str("")]
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:723: DeprecationWarning: ast.Str is deprecated and will 
+be removed in Python 3.14; use ast.Constant instead
+  _convert(elem) if is_dynamic else ast.Str(s=elem)
+C:\Python312\Lib\ast.py:587: DeprecationWarning: Attribute s is 
+deprecated and will be removed in Python 3.14; use value instead
+  return Constant(*args, **kwargs)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:730: DeprecationWarning: ast.Str is deprecated and will 
+be removed in Python 3.14; use ast.Constant instead
+  if isinstance(p, ast.Str) and isinstance(ret[-1], ast.Str):
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:731: DeprecationWarning: Attribute s is deprecated and 
+will be removed in Python 3.14; use value instead
+  ret[-1] = ast.Str(ret[-1].s + p.s)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:731: DeprecationWarning: ast.Str is deprecated and will 
+be removed in Python 3.14; use ast.Constant instead
+  ret[-1] = ast.Str(ret[-1].s + p.s)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:767: DeprecationWarning: ast.Str is deprecated and will 
+be removed in Python 3.14; use ast.Constant instead
+  func_ast.args.defaults.append(ast.Str(""))
+..
+----------------------------------------------------------------------
+Ran 2 tests in 3.152s
+
+OK
+[Config] Loading from: C:\Users\hobo\Desktop\Proxion\proxion-keyring\proxion_config.json
+Keyring: Pod Local Root aimed at: C:\Users\hobo\Desktop\Proxion\proxion-keyring\stash
+Warden: Fortress perimeter secured with 75631 blocked domains.
+[Lens] Starting global scan...
+Pod Proxy running on http://0.0.0.0:18099
+Solid API: http://localhost:18099/pod
+WebDAV API: http://localhost:18099/dav

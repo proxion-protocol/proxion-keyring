@@ -82,30 +82,34 @@ class Lens:
         self.is_scanning = True
         new_index = []
         
+        # 1. Physical Mount Points (Legacy)
         for drive, label in self.MOUNT_POINTS.items():
-            if not os.path.exists(drive):
-                continue
-                
-            print(f"[Lens] Indexing {label} ({drive})...")
-            try:
-                for root, dirs, files in os.walk(drive):
-                    for name in files:
-                        full_path = os.path.join(root, name)
-                        try:
-                            stat = os.stat(full_path)
-                            new_index.append({
-                                "name": name,
-                                "path": full_path,
-                                "drive": drive,
-                                "label": label,
-                                "size": stat.st_size,
-                                "mtime": stat.st_mtime,
-                                "type": os.path.splitext(name)[1].lower()
-                            })
-                        except:
-                            continue
-            except Exception as e:
-                print(f"[Lens] Failed to scan {drive}: {e}")
+            if os.path.exists(drive):
+                print(f"[Lens] Indexing {label} ({drive})...")
+                try:
+                    for root, dirs, files in os.walk(drive):
+                        for name in files:
+                            full_path = os.path.join(root, name)
+                            try:
+                                stat = os.stat(full_path)
+                                new_index.append({
+                                    "name": name,
+                                    "path": full_path,
+                                    "drive": drive,
+                                    "label": label,
+                                    "size": stat.st_size,
+                                    "mtime": stat.st_mtime,
+                                    "type": os.path.splitext(name)[1].lower(),
+                                    "proxion_status": "local"
+                                })
+                            except: continue
+                except Exception as e:
+                    print(f"[Lens] Failed to scan {drive}: {e}")
+
+        # 2. Virtual Pod Space (Solid Stash)
+        if self.manager and hasattr(self.manager, 'pod_proxy') and self.manager.pod_proxy:
+            print("[Lens] Indexing Solid Pod Space...")
+            self._scan_pod_recursive(self.manager.pod_proxy.hub, "/", new_index)
 
         with self._lock:
             self.index = new_index
@@ -113,6 +117,33 @@ class Lens:
             
         self.is_scanning = False
         print(f"[Lens] Scan complete. Indexed {len(self.index)} items.")
+
+    def _scan_pod_recursive(self, hub, path, results):
+        """Recursively walk the HybridHub."""
+        try:
+            entries = hub.list_dir(path)
+            for e in entries:
+                if e in [".", ".."]: continue
+                full_p = os.path.join(path, e).replace("\\", "/")
+                attr = hub.get_attr(full_p)
+                if not attr: continue
+                
+                is_dir = bool(attr['st_mode'] & 0o40000)
+                if is_dir:
+                    self._scan_pod_recursive(hub, full_p, results)
+                else:
+                    results.append({
+                        "name": e,
+                        "path": f"/pod{full_p}",
+                        "drive": "POD:",
+                        "label": "Solid Stash",
+                        "size": attr.get('st_size', 0),
+                        "mtime": attr.get('st_mtime', 0),
+                        "type": os.path.splitext(e)[1].lower(),
+                        "proxion_status": attr.get("proxion_status", "unknown")
+                    })
+        except:
+            pass
 
     def search(self, query: str) -> List[Dict[str, Any]]:
         """Search the index for matching filenames."""

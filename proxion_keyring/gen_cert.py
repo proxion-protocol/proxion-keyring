@@ -27,6 +27,16 @@ def generate_self_signed_cert(cert_path, key_path):
     # Use timezone-aware UTC
     now = datetime.datetime.now(datetime.timezone.utc)
     
+    # Detect local IP for SAN
+    import socket
+    def get_ip():
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try: s.connect(('10.255.255.255', 1)); ip = s.getsockname()[0]
+        except: ip = '127.0.0.1'
+        finally: s.close()
+        return ip
+    local_ip = get_ip()
+
     cert = x509.CertificateBuilder().subject_name(
         subject
     ).issuer_name(
@@ -40,9 +50,16 @@ def generate_self_signed_cert(cert_path, key_path):
     ).not_valid_after(
         now + datetime.timedelta(days=3650)
     ).add_extension(
+        # CRITICAL for iOS: Must be a CA to appear in Certificate Trust Settings
+        x509.BasicConstraints(ca=True, path_length=None),
+        critical=True,
+    ).add_extension(
         x509.SubjectAlternativeName([
             x509.DNSName(u"localhost"), 
-            x509.IPAddress(ipaddress.IPv4Address(u"127.0.0.1"))
+            x509.DNSName(u"vault.proxion"),
+            x509.DNSName(u"proxion.local"),
+            x509.IPAddress(ipaddress.IPv4Address(u"127.0.0.1")),
+            x509.IPAddress(ipaddress.IPv4Address(local_ip))
         ]),
         critical=False,
     ).sign(key, hashes.SHA256())

@@ -1,0 +1,220 @@
+﻿python : C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\we
+rkzeug\routing\rules.py:726: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+At line:1 char:113
++ ... -core\src"; python 
+C:\Users\hobo\Desktop\Proxion\proxion-keyring\test ...
++                 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\hobo\A...onstant  
+   instead:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  parts = parts or [ast.Str("")]
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:723: DeprecationWarning: ast.Str is deprecated and will 
+be removed in Python 3.14; use ast.Constant instead
+  _convert(elem) if is_dynamic else ast.Str(s=elem)
+C:\Python312\Lib\ast.py:587: DeprecationWarning: Attribute s is 
+deprecated and will be removed in Python 3.14; use value instead
+  return Constant(*args, **kwargs)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:730: DeprecationWarning: ast.Str is deprecated and will 
+be removed in Python 3.14; use ast.Constant instead
+  if isinstance(p, ast.Str) and isinstance(ret[-1], ast.Str):
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:731: DeprecationWarning: Attribute s is deprecated and 
+will be removed in Python 3.14; use value instead
+  ret[-1] = ast.Str(ret[-1].s + p.s)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:731: DeprecationWarning: ast.Str is deprecated and will 
+be removed in Python 3.14; use ast.Constant instead
+  ret[-1] = ast.Str(ret[-1].s + p.s)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\ro
+uting\rules.py:767: DeprecationWarning: ast.Str is deprecated and will 
+be removed in Python 3.14; use ast.Constant instead
+  func_ast.args.defaults.append(ast.Str(""))
+DEBUG: Importing proxion_keyring from C:\Users\hobo\Desktop\Proxion\proxion-keyring\proxion_keyring\__init__.py
+[Config] Loading from: C:\Users\hobo\Desktop\Proxion\proxion-keyring\proxion_config.json
+Keyring: Pod Local Root aimed at: C:\Users\hobo\Desktop\Proxion\proxion-keyring\stash
+Warden: Fortress perimeter secured with 75631 blocked domains.
+[Lens] Starting global scan...
+[Proxy] Registering routes...
+Pod Proxy running on http://0.0.0.0:8091
+ * Serving Flask app 'proxion_keyring.pod_proxy'
+ * Debug mode: off
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkzeug\se
+rving.py:718: ResourceWarning: unclosed <socket.socket fd=896, 
+family=2, type=1, proto=0>
+  self.socket = socket.fromfd(fd, address_family, socket.SOCK_STREAM)
+ResourceWarning: Enable tracemalloc to get the object allocation 
+traceback
+WARNING: This is a development server. Do not use it in a production 
+deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8091
+ * Running on http://192.168.1.101:8091
+Press CTRL+C to quit
+EFFE
+======================================================================
+ERROR: test_01_unauthorized_fail 
+(__main__.TestPodProxySecurity.test_01_unauthorized_fail)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\connection.py", line 516, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\http\client.py", line 1428, in getresponse
+    response.begin()
+  File "C:\Python312\Lib\http\client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\http\client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\socket.py", line 720, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was 
+forcibly closed by the remote host
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\req
+uests\adapters.py", line 667, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\util\retry.py", line 474, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\util\util.py", line 38, in reraise
+    raise value.with_traceback(tb)
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\url
+lib3\connection.py", line 516, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\http\client.py", line 1428, in getresponse
+    response.begin()
+  File "C:\Python312\Lib\http\client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\http\client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\socket.py", line 720, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.ProtocolError: ('Connection aborted.', 
+ConnectionResetError(10054, 'An existing connection was forcibly closed 
+by the remote host', None, 10054, None))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\tests\test_pod_pro
+xy_security.py", line 53, in test_01_unauthorized_fail
+    resp = requests.get("http://localhost:8091/pod/")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\req
+uests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\req
+uests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\req
+uests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\req
+uests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\req
+uests\adapters.py", line 682, in send
+    raise ConnectionError(err, request=request)
+requests.exceptions.ConnectionError: ('Connection aborted.', 
+ConnectionResetError(10054, 'An existing connection was forcibly closed 
+by the remote host', None, 10054, None))
+
+======================================================================
+ERROR: test_04_tampered_signature_fail 
+(__main__.TestPodProxySecurity.test_04_tampered_signature_fail)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\req
+uests\models.py", line 974, in json
+    return complexjson.loads(self.text, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\tests\test_pod_pro
+xy_security.py", line 94, in test_04_tampered_signature_fail
+    token = resp.json()
+            ^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\req
+uests\models.py", line 978, in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 
+(char 0)
+
+======================================================================
+FAIL: test_02_login_and_access 
+(__main__.TestPodProxySecurity.test_02_login_and_access)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\tests\test_pod_pro
+xy_security.py", line 60, in test_02_login_and_access
+    self.assertEqual(resp.status_code, 200)
+AssertionError: 405 != 200
+
+======================================================================
+FAIL: test_03_attenuation_enforced 
+(__main__.TestPodProxySecurity.test_03_attenuation_enforced)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\tests\test_pod_pro
+xy_security.py", line 84, in test_03_attenuation_enforced
+    self.assertEqual(resp.status_code, 200)
+AssertionError: 404 != 200
+
+----------------------------------------------------------------------
+Ran 4 tests in 31.153s
+
+FAILED (failures=2, errors=2)

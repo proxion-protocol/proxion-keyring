@@ -1,0 +1,123 @@
+﻿python : C:\Users\hobo\AppData\Roaming\Python\Python312\site-packag
+es\werkzeug\routing\rules.py:726: DeprecationWarning: ast.Str is 
+deprecated and will be removed in Python 3.14; use ast.Constant 
+instead
+At line:1 char:156
++ ... xion-fuse"; python 
+C:\Users\hobo\Desktop\Proxion\proxion-keyring\test ...
++                 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: 
+(C:\Users\hobo\A...onstant     instead:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  parts = parts or [ast.Str("")]
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:723: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+  _convert(elem) if is_dynamic else ast.Str(s=elem)
+C:\Python312\Lib\ast.py:587: DeprecationWarning: Attribute s is 
+deprecated and will be removed in Python 3.14; use value instead
+  return Constant(*args, **kwargs)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:730: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+  if isinstance(p, ast.Str) and isinstance(ret[-1], ast.Str):
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:731: DeprecationWarning: Attribute s is 
+deprecated and will be removed in Python 3.14; use value instead
+  ret[-1] = ast.Str(ret[-1].s + p.s)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:731: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+  ret[-1] = ast.Str(ret[-1].s + p.s)
+C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\werkze
+ug\routing\rules.py:767: DeprecationWarning: ast.Str is deprecated 
+and will be removed in Python 3.14; use ast.Constant instead
+  func_ast.args.defaults.append(ast.Str(""))
+[Config] Loading from: C:\Users\hobo\Desktop\Proxion\proxion-keyring\proxion_config.json
+Keyring: Pod Local Root aimed at: C:\Users\hobo\Desktop\Proxion\proxion-keyring\stash
+Warden: Fortress perimeter secured with 75631 blocked domains.
+[Lens] Starting global scan...
+Pod Proxy running on http://0.0.0.0:18099
+Solid API: http://localhost:18099/pod
+WebDAV API: http://localhost:18099/dav
+02:39:04.355 - ERROR   : Traceback (most recent call last):
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\wsgidav\error_printer.py", line 48, in __call__
+    app_iter = self.next_app(environ, sub_app_start_response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\wsgidav\http_authenticator.py", line 220, in __call__
+    return self.next_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\wsgidav\dir_browser\_dir_browser.py", line 84, in __call__
+    dav_res = environ["wsgidav.provider"].get_resource_inst(path, environ)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\proxion_keyring\pod_proxy.py", line 233, in get_resource_inst
+    path = util.norm_path(path)
+           ^^^^^^^^^^^^^^
+AttributeError: module 'wsgidav.util' has no attribute 'norm_path'. Did you mean: 'pop_path'?
+
+02:39:04.356 - ERROR   : Caught HTTPRequestException(HTTP_INTERNAL_ERROR)
+Traceback (most recent call last):
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\wsgidav\error_printer.py", line 82, in __call__
+    raise as_DAVError(e) from None
+wsgidav.dav_error.DAVError: 500
+
+02:39:04.356 - ERROR   : e.src_exception:
+module 'wsgidav.util' has no attribute 'norm_path'
+02:39:04.358 - ERROR   : Traceback (most recent call last):
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\wsgidav\error_printer.py", line 48, in __call__
+    app_iter = self.next_app(environ, sub_app_start_response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\wsgidav\http_authenticator.py", line 220, in __call__
+    return self.next_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\wsgidav\dir_browser\_dir_browser.py", line 84, in __call__
+    dav_res = environ["wsgidav.provider"].get_resource_inst(path, environ)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\proxion_keyring\pod_proxy.py", line 233, in get_resource_inst
+    path = util.norm_path(path)
+           ^^^^^^^^^^^^^^
+AttributeError: module 'wsgidav.util' has no attribute 'norm_path'. Did you mean: 'pop_path'?
+
+02:39:04.359 - ERROR   : Caught HTTPRequestException(HTTP_INTERNAL_ERROR)
+Traceback (most recent call last):
+  File "C:\Users\hobo\AppData\Roaming\Python\Python312\site-packages\wsgidav\error_printer.py", line 82, in __call__
+    raise as_DAVError(e) from None
+wsgidav.dav_error.DAVError: 500
+
+02:39:04.359 - ERROR   : e.src_exception:
+module 'wsgidav.util' has no attribute 'norm_path'
+FF
+===================================================================
+===
+FAIL: test_01_propfind_root 
+(__main__.TestWebDAVIntegration.test_01_propfind_root)
+Verify PROPFIND on WebDAV root.
+-------------------------------------------------------------------
+---
+Traceback (most recent call last):
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\tests\test_we
+bdav.py", line 40, in test_01_propfind_root
+    self.assertEqual(resp.status_code, 207) # Multi-Status
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 500 != 207
+
+===================================================================
+===
+FAIL: test_02_get_file 
+(__main__.TestWebDAVIntegration.test_02_get_file)
+Verify GET on a file via WebDAV.
+-------------------------------------------------------------------
+---
+Traceback (most recent call last):
+  File "C:\Users\hobo\Desktop\Proxion\proxion-keyring\tests\test_we
+bdav.py", line 48, in test_02_get_file
+    self.assertEqual(resp.status_code, 200)
+AssertionError: 500 != 200
+
+-------------------------------------------------------------------
+---
+Ran 2 tests in 3.218s
+
+FAILED (failures=2)
