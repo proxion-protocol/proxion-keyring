@@ -485,13 +485,55 @@ def suite_down(target):
         click.echo("\n[Proxion] Entire suite is down.")
         click.echo("[Proxion] To unmount P:, please close any open files and use OS eject or stop the mount process.")
 
+@suite.command(name="restart")
+@click.argument('target', default='all')
+def suite_restart(target):
+    """Restart the Proxion Suite, a Profile, or a specific App."""
+    import os
+    import subprocess
+    from concurrent.futures import ThreadPoolExecutor
+    
+    integrations_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../integrations"))
+    available_apps = [d.replace("-integration", "") for d in os.listdir(integrations_dir) if os.path.isdir(os.path.join(integrations_dir, d))]
+    
+    app_targets = []
+    
+    if target == 'all':
+        app_targets = [a for a in available_apps if os.path.exists(os.path.join(registry.get_app_path(a), ".installed"))]
+    elif target in PROFILES:
+        app_targets = PROFILES[target]
+    elif target in available_apps:
+        app_targets = [target]
+    else:
+        click.echo(f"Error: '{target}' is not a valid App or Profile.")
+        return
+
+    def restart_app(app_id):
+        app_path = registry.get_app_path(app_id)
+        if not app_path:
+            return f"{app_id}: FOLDER MISSING"
+        try:
+            subprocess.run(["docker-compose", "restart"], cwd=app_path, capture_output=True)
+            return f"{app_id}: RESTARTED"
+        except Exception as e:
+            return f"{app_id}: FAIL ({str(e)})"
+
+    click.echo(f"[Proxion] Orchestrating restart for {len(app_targets)} apps...")
+    
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = list(executor.map(restart_app, app_targets))
+        
+    for res in results:
+        click.echo(f"  {res}")
+
 @suite.command(name="status")
-def suite_status():
+@click.option('--detail', is_flag=True, help="Show detailed container status.")
+def suite_status(detail):
     """Check the health of the Proxion Suite."""
     import os
     import subprocess
     
-    click.echo("\n--- Proxion Proxion Suite Status ---")
+    click.echo("\n--- Proxion Suite Status ---")
     
     # Check Mount
     mount_point = "P:"
@@ -500,11 +542,24 @@ def suite_status():
     else:
         click.echo(f"Unified Mount (P:):  OFFLINE")
         
-    # Check Containers (Simplified)
+    # Check Core Proxy
     try:
-        output = subprocess.check_output(["docker", "ps", "--format", "{{.Names}}"]).decode()
-        running_containers = output.strip().split('\n')
-        click.echo(f"Running Containers:  {len(running_containers)}")
+        resp = requests.get("http://127.0.0.1:8089/pod/", timeout=2)
+        click.echo(f"Pod Proxy (8089):    ONLINE")
+    except:
+        click.echo(f"Pod Proxy (8089):    OFFLINE")
+
+    # Check Containers
+    try:
+        output = subprocess.check_output(["docker", "ps", "--format", "{{.Names}}|{{.Status}}"]).decode()
+        running = output.strip().split('\n') if output.strip() else []
+        click.echo(f"Running Containers:  {len(running)}")
+        
+        if detail and running:
+            click.echo("\nDetails:")
+            for line in running:
+                name, status = line.split('|')
+                click.echo(f"  {name:<25} {status}")
     except:
         click.echo("Running Containers:  ERROR (Docker not running?)")
 
