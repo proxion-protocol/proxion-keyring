@@ -9,6 +9,17 @@ def check_docker():
         return False, "Docker is not installed. Please install Docker Desktop."
     try:
         subprocess.run(["docker", "ps"], check=True, capture_output=True)
+        
+        # New: Check for network health (proxies)
+        try:
+            from proxion_keyring.os_adapter import get_adapter
+            adapter = get_adapter()
+            health = adapter.check_docker_health()
+            if health["status"] == "WARN":
+                return True, f"Docker is running, but with warnings: {'; '.join(health['warnings'])}"
+        except:
+            pass # Module not in path yet?
+            
         return True, "Docker is running."
     except subprocess.CalledProcessError:
         return False, "Docker is installed but not running. Please start Docker Desktop."

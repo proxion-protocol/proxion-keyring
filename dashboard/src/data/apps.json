@@ -393,7 +393,7 @@
         "category": "Security",
         "description": "Unofficial Bitwarden compatible server written in Rust.",
         "icon": "key",
-        "port": 8086,
+        "port": 8098,
         "path": "security/vaultwarden",
         "logo_slug": "vaultwarden"
     },
@@ -621,7 +621,7 @@
         "category": "System",
         "description": "Visual explorer for your Proxion Drive (P:).",
         "icon": "folder",
-        "port": 8084,
+        "port": 8097,
         "path": "system/explorer",
         "logo_slug": "filebrowser"
     },

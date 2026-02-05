@@ -417,17 +417,20 @@ def system_mount():
     # Format as Name|Path for the Virtual Pod driver
     sources = [f"{s.get('name')}|{s.get('path')}" for s in config.get("stash_sources", []) if s.get("path") and os.path.exists(s.get("path"))]
     
-    # ALWAYS ensure a local stash exists and is the primary fallback
+    # HYBRID HUB: Use proxion-core/storage as the Primary Source (Root)
+    # This ensures P:/security, P:/media etc. map to the Core Repo
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-    default_stash = os.path.join(repo_root, "stash")
-    if not os.path.exists(default_stash):
-        os.makedirs(default_stash, exist_ok=True)
+    core_storage = os.path.join(repo_root, "proxion-core", "storage")
     
-    # Insert local stash as the very first source so it becomes self.primary_source in mount.py
-    # This avoids "Access Denied" issues when resolving the root of a physical drive
-    sources.insert(0, f"Primary_Stash|{default_stash}")
+    # Fallback to local stash if core is missing (unlikely in dev env)
+    if not os.path.exists(core_storage):
+        core_storage = os.path.join(repo_root, "stash")
+        os.makedirs(core_storage, exist_ok=True)
     
-    print(f"[Backend] Initiating virtual mapping mount with sources: {sources}")
+    # Insert Core Storage as primary (Source #0)
+    sources.insert(0, f"System_Core|{core_storage}")
+    
+    print(f"[Backend] Initiating Hybrid Hub mount. Root: {core_storage}")
     cmd = ["python", fuse_script, mount_point] + sources
     # Spawn in background
     subprocess.Popen(cmd)
@@ -1148,11 +1151,12 @@ if __name__ == "__main__":
                 config = load_config()
                 sources = [f"{s.get('name')}|{s.get('path')}" for s in config.get("stash_sources", []) if s.get("path") and os.path.exists(s.get("path"))]
                 
-                # Use local stash as primary to avoid Access Denied on drive roots
-                local_stash = os.path.join(repo_root, "stash")
-                if not os.path.exists(local_stash):
-                    os.makedirs(local_stash, exist_ok=True)
-                sources.insert(0, f"Primary_Stash|{local_stash}")
+                # HYBRID HUB: Use proxion-core/storage as Primary
+                core_storage = os.path.join(repo_root, "proxion-core", "storage")
+                if not os.path.exists(core_storage):
+                    core_storage = os.path.join(repo_root, "stash")
+                    os.makedirs(core_storage, exist_ok=True)
+                sources.insert(0, f"System_Core|{core_storage}")
                 
                 cmd = ["python", fuse_script, mount_point] + sources
                 subprocess.Popen(cmd)

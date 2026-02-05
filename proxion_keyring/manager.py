@@ -3,7 +3,8 @@ import threading
 from typing import Dict, Optional, Any
 from datetime import datetime, timezone
 from cryptography.hazmat.primitives.asymmetric import ed25519
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 class KeyringManager:
     """
@@ -12,6 +13,12 @@ class KeyringManager:
     """
     
     def __init__(self):
+        # Configuration
+        from .config import load_config
+        self.config = load_config()
+        self.pod_local_root = self.config.get("pod_local_root")
+        print(f"Keyring: Pod Local Root aimed at: {self.pod_local_root}")
+
         # Warden Perimeter Security
         from .warden import Warden
         self.warden = Warden()
@@ -55,6 +62,105 @@ class KeyringManager:
         self.wg_server_priv: Optional[str] = None
         self.wg_server_pub: Optional[str] = None
         self._ensure_wireguard_keys()
+
+    def get_signing_key(self) -> bytes:
+        """Derive an HMAC signing key from the master identity key."""
+        raw_bytes = self.private_key.private_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PrivateFormat.Raw,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        hkdf = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=b"proxion:token:signing",
+        )
+        return hkdf.derive(raw_bytes)
+
+    def _get_caveat_predicates(self):
+        """Registry of caveat evaluators."""
+        def path_prefix_check(ctx):
+            # Example ID: "path_prefix:/photos"
+            for caveat in ctx.current_token_caveats: # This needs to be passed in from validator
+                 if caveat.id.startswith("path_prefix:"):
+                     prefix = caveat.id.split(":", 1)[1]
+                     if not ctx.resource.startswith(prefix):
+                         return False
+            return True
+        return {"path_prefix": path_prefix_check}
+
+    def validate_token(self, token_data: str, ctx_data: dict, proof: dict):
+        """Wrapper for proxion_core validation."""
+        from proxion_core.tokens import Token
+        from proxion_core.validator import validate_request
+        from proxion_core.context import RequestContext, Caveat
+        import json
+
+        try:
+            raw = json.loads(token_data)
+            from datetime import datetime, timezone
+            
+            # Rehydrate Caveats (Phase 2.4)
+            caveats = []
+            for cid in raw.get("caveats", []):
+                if cid.startswith("path_prefix:"):
+                    prefix = cid.split(":", 1)[1]
+                    caveats.append(Caveat(cid, lambda ctx, p=prefix: ctx.resource.startswith(p)))
+            
+            token = Token(
+                token_id=raw["token_id"],
+                permissions=frozenset(tuple(p) for p in raw["permissions"]),
+                exp=datetime.fromisoformat(raw["exp"]),
+                aud=raw["aud"],
+                caveats=tuple(caveats), 
+                holder_key_fingerprint=raw["holder_key_fingerprint"],
+                alg=raw.get("alg", "HMAC-SHA256"),
+                signature=raw["signature"]
+            )
+            
+            ctx = RequestContext(
+                action=ctx_data["action"],
+                resource=ctx_data["resource"],
+                aud=self.get_public_key_hex(),
+                now=datetime.now(timezone.utc)
+            )
+            
+            return validate_request(
+                token=token,
+                ctx=ctx,
+                proof=proof,
+                signing_key=self.get_signing_key()
+            )
+        except Exception as e:
+            from proxion_core.validator import Decision
+            import logging
+            logging.error(f"Validation Traceback: {e}")
+            return Decision(False, f"Validation Error: {str(e)}")
+
+    def mint_stash_token(self, holder_pub_key_hex: str, path_prefix: str = "/") -> dict:
+        """Mint a capability token for the Stash (FUSE) driver."""
+        from proxion_core.tokens import issue_token
+        from proxion_core.context import Caveat
+        from datetime import datetime, timedelta, timezone
+        
+        permissions = [("READ", "/"), ("WRITE", "/"), ("CREATE", "/"), ("DELETE", "/")]
+        exp = datetime.now(timezone.utc) + timedelta(hours=24)
+        
+        caveats = []
+        if path_prefix != "/":
+            # Add attenuation caveat
+            caveats.append(Caveat(f"path_prefix:{path_prefix}", lambda ctx: True)) # ID is enough for hydration
+        
+        token = issue_token(
+            permissions=permissions,
+            exp=exp,
+            aud=self.get_public_key_hex(),
+            caveats=caveats,
+            holder_key_fingerprint=holder_pub_key_hex,
+            signing_key=self.get_signing_key()
+        )
+        return token.payload() | {"signature": token.signature}
 
     def _ensure_wireguard_keys(self):
         """Ensure persistent WireGuard identity exists."""
