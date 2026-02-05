@@ -2,7 +2,7 @@
 
 **Your Universal Digital Key Ring.**
 
-proxion-keyring (Greek for "Keyring") is a privacy-first application that connects your devices instantly using your **Solid Pod** identity.
+proxion-keyring is a privacy-first application that connects your devices instantly using your **Solid Pod** identity.
 
 > **Status:** Phase 1 Complete (Windows & Linux Support)
 
