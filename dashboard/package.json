@@ -10,14 +10,15 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron": "electron .",
-    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development npm run electron\""
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://127.0.0.1:5173 && cross-env NODE_ENV=development npm run electron\""
   },
   "dependencies": {
     "@inrupt/solid-client": "^3.0.0",
     "@inrupt/solid-client-authn-browser": "^3.1.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

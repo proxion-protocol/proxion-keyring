@@ -1,23 +1,50 @@
 import { useState, useEffect } from 'react';
 
 export const StorageManager = ({ proxionToken }) => {
-    const [data, setData] = useState(null);
-    const [config, setConfig] = useState({ stash_sources: [] });
-    const [loading, setLoading] = useState(true);
+    // Load cached storage data from localStorage for instant O(1) display
+    const [data, setData] = useState(() => {
+        try {
+            const cached = localStorage.getItem('proxion_storage_data');
+            return cached ? JSON.parse(cached) : null;
+        } catch {
+            return null;
+        }
+    });
+    const [config, setConfig] = useState(() => {
+        try {
+            const cached = localStorage.getItem('proxion_storage_config');
+            return cached ? JSON.parse(cached) : { stash_sources: [] };
+        } catch {
+            return { stash_sources: [] };
+        }
+    });
+    const [loading, setLoading] = useState(() => !localStorage.getItem('proxion_storage_data'));
     const [mounting, setMounting] = useState(false);
     const [addingSource, setAddingSource] = useState(false);
+    const [status, setStatus] = useState(null); // { message: string, type: 'info' | 'success' | 'error' }
+
+    const showStatus = (message, type = 'info') => {
+        setStatus({ message, type });
+        if (type !== 'error') {
+            setTimeout(() => setStatus(null), 5000);
+        }
+    };
 
     const fetchStorageData = async () => {
         try {
             const statsResp = await fetch('http://127.0.0.1:8788/storage/stats', {
                 headers: { 'Proxion-Token': proxionToken }
             });
-            setData(await statsResp.json());
+            const statsData = await statsResp.json();
+            setData(statsData);
+            localStorage.setItem('proxion_storage_data', JSON.stringify(statsData));
 
             const configResp = await fetch('http://127.0.0.1:8788/storage/config', {
                 headers: { 'Proxion-Token': proxionToken }
             });
-            setConfig(await configResp.json());
+            const configData = await configResp.json();
+            setConfig(configData);
+            localStorage.setItem('proxion_storage_config', JSON.stringify(configData));
         } catch (err) {
             console.error("Storage data fetch failed", err);
         } finally {
@@ -27,6 +54,7 @@ export const StorageManager = ({ proxionToken }) => {
 
     const handleMount = async (sourceId) => {
         setMounting(true);
+        showStatus("Mounting Unified Hub...", "info");
         try {
             // Find the source path
             const source = config.stash_sources.find(s => s.id === sourceId) || config.stash_sources[0];
@@ -38,9 +66,17 @@ export const StorageManager = ({ proxionToken }) => {
                 },
                 body: JSON.stringify({ pod_path: source?.path })
             });
-            if (resp.ok) setTimeout(fetchStorageData, 2000);
+            if (resp.ok) {
+                setTimeout(() => {
+                    fetchStorageData();
+                    showStatus("P: Drive mounted successfully.", "success");
+                }, 2000);
+            } else {
+                showStatus("Mount failed. Check system logs.", "error");
+            }
         } catch (err) {
             console.error("Mount request failed", err);
+            showStatus("Network Error: Could not reach backend.", "error");
         } finally {
             setMounting(false);
         }
@@ -48,17 +84,24 @@ export const StorageManager = ({ proxionToken }) => {
 
     const handleUnmount = async () => {
         setMounting(true);
+        showStatus("Detaching Hub...", "info");
         try {
             const resp = await fetch('http://127.0.0.1:8788/system/unmount', {
                 method: 'POST',
                 headers: { 'Proxion-Token': proxionToken }
             });
             if (resp.ok) {
-                setTimeout(fetchStorageData, 1000);
-                alert("P: Drive has been detached. You can now remount to include new disks.");
+                // Give the system 2 seconds to tear down the virtual disk
+                setTimeout(() => {
+                    fetchStorageData();
+                    showStatus("P: Drive detached successfully.", "success");
+                }, 2000);
+            } else {
+                showStatus("Unmount failed.", "error");
             }
         } catch (err) {
             console.error("Unmount failed", err);
+            showStatus("Network Error: Could not reach backend.", "error");
         } finally {
             setMounting(false);
         }
@@ -68,7 +111,7 @@ export const StorageManager = ({ proxionToken }) => {
         try {
             console.log("[StorageManager] Add Source clicked");
             if (!window.electronAPI) {
-                alert("System Error: Electron API not found. Please fully restart the dashboard.");
+                showStatus("System Error: Electron API not found.", "error");
                 return;
             }
 
@@ -98,9 +141,10 @@ export const StorageManager = ({ proxionToken }) => {
 
             console.log("[StorageManager] Final sources list for save:", newSources);
             await saveSources(newSources);
+            showStatus(`Added ${name} source.`, "success");
         } catch (err) {
             console.error("[StorageManager] Error adding source:", err);
-            alert("Unexpected error: " + err.message);
+            showStatus("Failed to add source: " + err.message, "error");
         }
     };
 
@@ -108,6 +152,7 @@ export const StorageManager = ({ proxionToken }) => {
         if (!confirm("Are you sure you want to remove this storage source?")) return;
         const newSources = config.stash_sources.filter(s => s.id !== id);
         await saveSources(newSources);
+        showStatus("Source removed.", "success");
     };
 
     const saveSources = async (sources) => {
@@ -129,16 +174,17 @@ export const StorageManager = ({ proxionToken }) => {
                 fetchStorageData(); // Refresh pooled stats immediately
             } else {
                 const error = await resp.json();
-                alert("Failed to save storage config: " + (error.error || "Unknown error"));
+                showStatus("Failed to save storage config: " + (error.error || "Unknown error"), "error");
             }
         } catch (err) {
             console.error("Failed to save sources", err);
-            alert("Network error while saving storage config: " + err.message);
+            showStatus("Network Error while saving config.", "error");
         }
     };
 
     const handleRefresh = async () => {
         setMounting(true);
+        showStatus("Syncing Hub...", "info");
         try {
             await fetch('http://127.0.0.1:8788/system/unmount', {
                 method: 'POST',
@@ -150,9 +196,13 @@ export const StorageManager = ({ proxionToken }) => {
                 method: 'POST',
                 headers: { 'Proxion-Token': proxionToken }
             });
-            setTimeout(fetchStorageData, 2000);
+            setTimeout(() => {
+                fetchStorageData();
+                showStatus("Hub synced successfully.", "success");
+            }, 2000);
         } catch (err) {
             console.error("Refresh Logic Failed", err);
+            showStatus("Sync failed.", "error");
         } finally {
             setMounting(false);
         }
@@ -248,11 +298,20 @@ export const StorageManager = ({ proxionToken }) => {
 
                 <div className="orchestrator-footer">
                     <div className="footer-status">
-                        <p className="instruction">
-                            {data?.is_mounted
-                                ? "Virtual P: drive is live. Folders are indexed at the root level."
-                                : "Ready to orchestrate. Click below to mount your unified filesystem."}
-                        </p>
+                        {status ? (
+                            <div className={`status-banner ${status.type}`}>
+                                <span className="status-icon">
+                                    {status.type === 'success' ? '✓' : status.type === 'error' ? '⚠' : 'ℹ'}
+                                </span>
+                                {status.message}
+                            </div>
+                        ) : (
+                            <p className="instruction">
+                                {data?.is_mounted
+                                    ? "Virtual P: drive is live. Folders are indexed at the root level."
+                                    : "Ready to orchestrate. Click below to mount your unified filesystem."}
+                            </p>
+                        )}
                     </div>
                     <div className="footer-actions-grid">
                         <button
@@ -260,7 +319,9 @@ export const StorageManager = ({ proxionToken }) => {
                             onClick={data?.is_mounted ? handleRefresh : () => handleMount()}
                             disabled={mounting || !config.stash_sources?.length}
                         >
-                            {mounting ? 'Orchestrating...' : (data?.is_mounted ? 'Sync / Refresh Hub P:' : 'Mount Unified P:')}
+                            {mounting
+                                ? (data?.is_mounted ? 'Syncing Hub...' : 'Mounting Hub...')
+                                : (data?.is_mounted ? 'Sync / Refresh Hub P:' : 'Mount Unified P:')}
                         </button>
 
                         {data?.is_mounted && (
@@ -390,8 +451,41 @@ export const StorageManager = ({ proxionToken }) => {
                 .btn-orchestrate.primary:hover:not(.disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255, 255, 255, 0.15); }
                 .btn-orchestrate.secondary { background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); margin-top: 1rem; }
                 .btn-orchestrate.disabled { opacity: 0.3; cursor: not-allowed; }
+                
+                .btn-orchestrate.loading {
+                    animation: pulse 1.5s infinite ease-in-out;
+                    cursor: wait;
+                    opacity: 0.8;
+                }
 
-                .footer-status { text-align: center; margin-bottom: 1.5rem; color: rgba(255, 255, 255, 0.6); font-size: 0.9rem; }
+                @keyframes pulse {
+                    0% { transform: scale(1); opacity: 0.8; }
+                    50% { transform: scale(0.98); opacity: 1; box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); }
+                    100% { transform: scale(1); opacity: 0.8; }
+                }
+
+                .footer-status { text-align: center; margin-bottom: 1.5rem; color: rgba(255, 255, 255, 0.6); font-size: 0.9rem; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+
+                .status-banner {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 0.8rem 1.2rem;
+                    border-radius: 8px;
+                    font-weight: 500;
+                    animation: slideIn 0.3s ease-out;
+                    width: 100%;
+                }
+                .status-banner.info { background: rgba(0, 210, 255, 0.1); color: #00d2ff; border: 1px solid rgba(0, 210, 255, 0.2); }
+                .status-banner.success { background: rgba(0, 255, 204, 0.1); color: #00ffcc; border: 1px solid rgba(0, 255, 204, 0.2); }
+                .status-banner.error { background: rgba(255, 87, 87, 0.1); color: #ff5757; border: 1px solid rgba(255, 87, 87, 0.2); }
+                
+                .status-icon { font-size: 1.1rem; }
+
+                @keyframes slideIn {
+                    from { transform: translateY(10px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
             `}</style>
         </div >
     );

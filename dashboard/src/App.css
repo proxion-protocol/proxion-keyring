@@ -11,18 +11,22 @@
   --font-main: 'Inter', system-ui, sans-serif;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
+  padding: 0;
   background: var(--bg-dark);
   color: var(--text);
   font-family: var(--font-main);
   -webkit-font-smoothing: antialiased;
-  /* Desktop Centering Wrapper */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  /* Vertical center on desktop */
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
 }
 
 .center-screen {
@@ -367,24 +371,35 @@ a {
 .main-viewport {
   flex: 1;
   height: 100vh;
-  overflow-y: auto;
   padding: 0;
   background: radial-gradient(circle at top left, #1e242e, var(--bg-dark));
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  /* Fixes flex child overflow issues */
 }
 
 .view-container {
   padding: 3rem 4rem;
   max-width: 1200px;
   margin: 0 auto;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .webview-container {
   width: 100%;
   height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   background: var(--bg-dark);
+  overflow: hidden;
+  position: relative;
 }
 
 .view-header {

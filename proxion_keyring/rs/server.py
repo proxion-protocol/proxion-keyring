@@ -7,10 +7,13 @@ Exposes real HTTP endpoints for secure channel bootstrap.
 import os
 import sys
 import secrets
-from flask import Flask, request, jsonify
+import time
+import json
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import threading
 
+from .os_adapter_init import adapter
 from .service import ResourceServer, WireGuardConfig
 from ..manager import KeyringManager
 from ..pod_proxy import PodProxyServer
@@ -69,10 +72,11 @@ wg_config = WireGuardConfig(
 )
 # Strict RS (Phase 5)
 rs = ResourceServer(signing_key=DUMMY_KEY, wg_config=wg_config)
+rs._mutation_enabled = True # V7.12: Allow cleanup logic to run
 
 def cleanup():
     """Remove all peers on shutdown."""
-    if not rs._mutation_enabled:
+    if not hasattr(rs, "_mutation_enabled") or not rs._mutation_enabled:
         return
         
     print(f"RS: Cleaning up {len(rs._active_sessions)} sessions...")
@@ -394,6 +398,27 @@ def system_install():
         return jsonify({"status": "Installation initiated", "message": msg}), 200
     return jsonify({"error": msg}), 500
 
+def _kill_proxion_fuse_processes():
+    """Helper to kill any running mount.py processes on Windows."""
+    if os.name != 'nt':
+        return
+    import subprocess
+    try:
+        # Use wmic with format:list for easy parsing
+        # Filter for python processes that contain 'mount.py' in their command line
+        output = subprocess.check_output(['wmic', 'process', 'where', 'name="python.exe" and commandline like "%%mount.py%%"', 'get', 'ProcessId', '/format:list'], text=True)
+        for line in output.splitlines():
+            if 'ProcessId=' in line:
+                try:
+                    pid = int(line.split('=')[1].strip())
+                    print(f"[Backend] Terminating FUSE process PID: {pid}")
+                    subprocess.run(['taskkill', '/F', '/PID', str(pid)], capture_output=True)
+                except (ValueError, IndexError):
+                    continue
+    except Exception as e:
+        # It's possible wmic returns error if no processes match, which is fine
+        pass
+
 @app.route("/system/mount", methods=["POST"])
 @require_capability("manage", "system:host")
 def system_mount():
@@ -402,36 +427,27 @@ def system_mount():
     mount_point = "P:"
     
     # Aggressively try to clear P: first
+    _kill_proxion_fuse_processes()
     if os.name == 'nt':
         subprocess.run(["subst", "P:", "/D"], capture_output=True)
-        # Also kill any existing python mount processes
-        subprocess.run(["taskkill", "/F", "/IM", "python.exe", "/FI", "WINDOWTITLE eq Proxion Unified FUSE Driver"], capture_output=True)
 
     # Only mount if not already present
-    if os.path.exists(mount_point):
+    if os.name == 'nt' and os.path.exists(mount_point):
         return jsonify({"status": "Already Mounted", "path": mount_point}), 200
 
-    fuse_script = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../proxion-fuse/mount.py"))
-    
-    config = load_config()
-    # Format as Name|Path for the Virtual Pod driver
-    sources = [f"{s.get('name')}|{s.get('path')}" for s in config.get("stash_sources", []) if s.get("path") and os.path.exists(s.get("path"))]
-    
-    # HYBRID HUB: Use proxion-core/storage as the Primary Source (Root)
-    # This ensures P:/security, P:/media etc. map to the Core Repo
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-    core_storage = os.path.join(repo_root, "proxion-core", "storage")
+    fuse_script = os.path.join(repo_root, "proxion-fuse", "mount.py")
     
-    # Fallback to local stash if core is missing (unlikely in dev env)
-    if not os.path.exists(core_storage):
-        core_storage = os.path.join(repo_root, "stash")
-        os.makedirs(core_storage, exist_ok=True)
+    # 1. GENERATE MOUNT TOKEN
+    print(f"[Backend] Generating mount capability token via {fuse_script}...")
+    cp = subprocess.run([sys.executable, fuse_script, "--create-token"], capture_output=True, text=True)
+    if cp.returncode != 0:
+        print(f"[Backend ERR] Token generation failed: {cp.stderr}")
+        return jsonify({"error": "Token generation failed", "details": cp.stderr}), 500
     
-    # Insert Core Storage as primary (Source #0)
-    sources.insert(0, f"System_Core|{core_storage}")
-    
-    print(f"[Backend] Initiating Hybrid Hub mount. Root: {core_storage}")
-    cmd = ["python", fuse_script, mount_point] + sources
+    # 2. START FUSE DRIVER
+    print(f"[Backend] Initiating Secure P: Drive mount.")
+    cmd = [sys.executable, fuse_script, mount_point]
     # Spawn in background
     subprocess.Popen(cmd)
     
@@ -442,11 +458,8 @@ def system_mount():
 def system_unmount():
     """Kill any running FUSE processes and unmount P:."""
     import subprocess
+    _kill_proxion_fuse_processes()
     if os.name == 'nt':
-        # On Windows, we just need to kill the python processes running mount.py
-        # and maybe the WinFUSE process if possible.
-        # But killing our subprocess is usually enough for the dev environment.
-        subprocess.run(["taskkill", "/F", "/IM", "python.exe", "/FI", "WINDOWTITLE eq Proxion Unified FUSE Driver"], capture_output=True)
         # Attempt to remove the drive letter mapping if it lingers
         subprocess.run(["subst", "P:", "/D"], capture_output=True)
     
@@ -541,7 +554,7 @@ def storage_config():
 def identity_keys():
     """Visualize fortress keys and fingerprints."""
     return jsonify({
-        "public_key": manager.public_key_hex,
+        "public_key": manager.get_public_key_hex(),
         "identity_type": "Ed25519",
         "capabilities_issued": 8,
         "trust_score": 98.4
@@ -566,57 +579,280 @@ def federation_revoke():
     manager.revoke_relationship(cert_id)
     return jsonify({"status": "Revoked"}), 200
 
+# --- Federation Invitation Endpoints ---
+
+@app.route("/federation/invite/list", methods=["GET"])
+@require_capability("manage", "federation")
+def federation_invite_list():
+    """List all active and historical invitations."""
+    return jsonify(manager.active_invitations), 200
+
+@app.route("/federation/invite/create", methods=["POST"])
+@require_capability("manage", "federation")
+def federation_invite_create():
+    """Generate a new invitation (Rate-limited)."""
+    # 1. Rate Limit Check
+    client_ip = request.remote_addr
+    if not manager.check_rate_limit(client_ip):
+        return jsonify({"error": "Rate limit exceeded. Max 5 invites per hour."}), 429
+    
+    # 2. Extract Params
+    data = request.json or {}
+    capabilities = data.get("capabilities", [])
+    expiration = data.get("expiration", "1d")
+    metadata = data.get("metadata", {})
+    
+    if not capabilities:
+        return jsonify({"error": "Missing capabilities"}), 400
+        
+    # 3. Create Invitation
+    invite_id = manager.create_invitation(capabilities, expiration, metadata)
+    
+    # 4. Return Details
+    invite_data = manager.active_invitations[invite_id]
+    return jsonify(invite_data), 201
+
+@app.route("/federation/invite/revoke", methods=["POST"])
+@require_capability("manage", "federation")
+def federation_invite_revoke():
+    """Revoke an unused invitation."""
+    data = request.json or {}
+    invite_id = data.get("invite_id")
+    if not invite_id:
+        return jsonify({"error": "Missing invite_id"}), 400
+        
+    manager.revoke_invitation(invite_id)
+    return jsonify({"status": "Revoked"}), 200
+
+# --- Mesh Management Endpoints ---
+
+@app.route("/mesh/dns/status", methods=["GET"])
+@require_capability("read", "system:host")
+def mesh_dns_status():
+    """Check if host DNS is pointed to local Proxion AdGuard."""
+    idx = adapter.get_active_interface_index()
+    if idx is None:
+        return jsonify({"error": "No active interface"}), 500
+    
+    dns_servers = adapter.get_dns(idx)
+    is_protected = "127.0.0.1" in dns_servers
+    
+    return jsonify({
+        "protected": is_protected,
+        "dns_servers": dns_servers
+    }), 200
+
+@app.route("/mesh/dns/toggle", methods=["POST"])
+@require_capability("manage", "system:host")
+def mesh_dns_toggle():
+    """Enable or disable global DNS protection."""
+    data = request.json or {}
+    enable = data.get("enable", True)
+    
+    idx = adapter.get_active_interface_index()
+    if idx is None:
+        return jsonify({"error": "No active interface"}), 500
+
+    try:
+        if enable:
+            adapter.set_dns(idx, "127.0.0.1")
+        else:
+            adapter.reset_dns(idx)
+        return jsonify({"status": "Command Sent", "pending": True}), 202
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- The Guardian & The Librarian (Phase 2.4) ---
+
+@app.route("/system/events", methods=["GET"])
+def system_events():
+    """Guardian: Stream real-time security events (SSE) via Shared Log Tailing."""
+    def generate():
+        # 1. Backfill with recent events from memory queue
+        recent_events = manager.events.get_recent(20)
+        for ev in recent_events:
+            yield f"data: {json.dumps(ev)}\n\n"
+        
+        # Initial greeting if queue was empty
+        if not recent_events:
+            yield f"data: {json.dumps({'type': 'info', 'subject': 'The Guardian', 'action': 'Established', 'resource': 'Link', 'timestamp': time.time()})}\n\n"
+        
+        log_path = os.path.join(manager.pod_local_root, "system_events.jsonl")
+        
+        if not os.path.exists(log_path):
+            try:
+                with open(log_path, "w") as f: pass
+            except: pass
+             
+        try:
+            with open(log_path, "r") as f:
+                # Seek to current end of file for live tailing
+                f.seek(0, 2)
+                
+                while True:
+                    line = f.readline()
+                    if not line:
+                        # Shared-reading safe tailing
+                        curr_pos = f.tell()
+                        if os.path.getsize(log_path) < curr_pos:
+                            # File truncated/rotated
+                            f.seek(0)
+                        else:
+                            f.seek(curr_pos)
+                        time.sleep(0.5)
+                        continue
+                    yield f"data: {line}\n\n"
+        except Exception as e:
+            print(f"RS: Guardian Stream Error: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'subject': 'Guardian', 'action': 'Stream Interrupted', 'resource': str(e)})}\n\n"
+            
+    return Response(generate(), mimetype='text/event-stream')
+
+@app.route("/storage/ls", methods=["GET"])
+def storage_ls():
+    """Librarian: List files in the Unified Stash."""
+    path = request.args.get('path', '/')
+    return jsonify(manager.storage_ls(path))
+
+@app.route("/storage/file", methods=["DELETE"])
+def storage_delete():
+    """Librarian: Delete a file in the Unified Stash."""
+    path = request.args.get('path')
+    if not path:
+        return jsonify({"error": "Missing path"}), 400
+    
+    success = manager.storage_delete(path)
+    if success:
+        return jsonify({"status": "Deleted"}), 200
+    return jsonify({"error": "Delete failed"}), 500
+
 # --- Suite Management Endpoints ---
 
+@app.route("/suite/status/detail", methods=["GET"])
+@require_capability("read", "system:suite")
+def suite_status_detail():
+    """Returns comprehensive health data for the suite."""
+    return jsonify(manager.get_suite_status()), 200
+
+@app.route("/suite/orchestrate", methods=["POST"])
+@require_capability("manage", "system:suite")
+def suite_orchestrate():
+    """Execute bulk container operations."""
+    data = request.json or {}
+    action = data.get("action")
+    target = data.get("target", "all")
+    
+    if action not in ["up", "down", "restart"]:
+        return jsonify({"error": f"Invalid action: {action}"}), 400
+        
+    result = manager.orchestrate_suite(action, target)
+    return jsonify(result), 202 if "results" in result else 400
+
+# --- Network Medic Endpoints ---
+
+@app.route("/network/medic", methods=["POST"])
+@require_capability("manage", "system:host")
+def network_medic():
+    """Run full network diagnostics and auto-repairs."""
+    return jsonify(manager.run_network_medic()), 200
+
+@app.route("/network/medic/stats", methods=["GET"])
+@require_capability("read", "system:host")
+def network_medic_stats():
+    """Get metrics from the background watchdog (Reloaded from shared state)."""
+    # Force reload from disk in case an external process updated it
+    stats = manager._load_medic_stats()
+    return jsonify(stats), 200
+
+@app.route("/network/fleet/harden", methods=["POST"])
+@require_capability("manage", "system:host")
+def network_fleet_harden():
+    """Manually trigger security hardening for the entire integration fleet."""
+    return jsonify(manager.harden_fleet()), 200
+
+@app.route("/network/fleet/forge", methods=["POST"])
+@require_capability("manage", "system:host")
+def network_fleet_forge():
+    """Trigger the aggressive Stage V6 mass-forge pipeline."""
+    import threading
+    threading.Thread(target=manager.mass_forge_integrations).start()
+    return jsonify({"status": "Aggressive Rollout Started", "tier": "V6-MassForge"}), 202
+
+@app.route("/network/dns-safety-mode", methods=["POST"])
+@require_capability("manage", "system:host")
+def network_dns_safety_mode():
+    """Toggle between DoH and Plain DNS upstreams."""
+    data = request.json or {}
+    enabled = data.get("enable", False)
+    return jsonify(manager.set_dns_safety_mode(enabled)), 200
+
+@app.route("/system/security/audit", methods=["POST"])
+@require_capability("manage", "system:host")
+def system_security_audit():
+    """Trigger a full security audit of all running containers."""
+    import threading
+    threading.Thread(target=manager.guardian.run_security_audit).start()
+    return jsonify({"status": "Audit Started", "message": "Results will be available via /network/medic/stats"}), 202
+
+# Global status cache to prevent UI "flicker" when Docker is slow
+_status_cache = {"apps": {}, "last_updated": 0}
+
 @app.route("/suite/status", methods=["GET"])
-@require_capability("read", "system:suite") # Hardened from (*, *)
+@require_capability("read", "system:suite")
 def suite_status():
-    """Get status of all possible integrations."""
+    """Get status of all possible integrations with caching in case Docker glitches."""
     import os
     import subprocess
+    import time
+    
+    global _status_cache
     integrations_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../integrations"))
 
-
-    
-    # 1. Get ALL containers (including stopped ones)
-    apps_with_containers = set()
+    # 1. Get ALL containers and their status
+    container_info = {}
     try:
-        # Use docker ps -a to find any container relating to our project
-        output = subprocess.check_output(["docker", "ps", "-a", "--format", "{{.Names}}"]).decode()
-        containers = [c.strip() for c in output.strip().split('\n') if c.strip()]
-        for c in containers:
-             # Match exact prefix {app_id}- but handle the -integration suffix in folder names later
-             apps_with_containers.add(c)
-    except:
-        pass
+        # Use a short timeout to prevent UI hang
+        output = subprocess.check_output([
+            "docker", "ps", "-a", "--format", "{{.Names}}|{{.State}}"
+        ], timeout=5).decode()
+        for line in output.strip().split('\n'):
+            if '|' in line:
+                name, state = line.split('|')
+                container_info[name] = state
+    except Exception as e:
+        # DOCKER FAILURE: Use cache if it's not too old
+        if _status_cache["apps"] and (time.time() - _status_cache["last_updated"] < 60):
+            print(f"RS: Docker glitch detected ({e}). Returning cached states.")
+            return jsonify({"apps": _status_cache["apps"], "docker_error": str(e)}), 200
+        # If no cache or too old, we must continue but results will be empty
+        print(f"RS: Docker Critical Failure: {e}")
 
     # 2. Map status
     results = {}
     if os.path.exists(integrations_dir):
         for d in os.listdir(integrations_dir):
             if os.path.isdir(os.path.join(integrations_dir, d)):
-                # Folder name is typically 'app-integration'
+                if not d.endswith("-integration"): continue
+                
                 clean_id = d.replace("-integration", "")
+                matching_containers = [n for n in container_info.keys() if clean_id in n]
                 
-                # Check for running vs stopped containers
-                # Project naming usually follows Compose defaults: {folder}_{service}_{index}
-                # or we prefix them. Here we fallback to simple but more accurate inclusion.
-                any_container = any(clean_id in c for c in apps_with_containers)
-                
-                if not any_container:
-                    status = "UNINSTALLED"
+                if not matching_containers:
+                    # Check for marker file to differentiate UNINSTALLED from STOPPED during failure
+                    marker = os.path.join(integrations_dir, d, ".installed")
+                    if os.path.exists(marker):
+                        status = "STOPPED" # Assume stopped if installed marker exists but no container found
+                    else:
+                        status = "UNINSTALLED"
                 else:
-                    # Check if specifically RUNNING
-                    try:
-                        is_running = subprocess.run(
-                            ["docker", "ps", "-q", "--filter", f"name={clean_id}"],
-                            capture_output=True, text=True
-                        ).stdout.strip() != ""
-                        status = "RUNNING" if is_running else "STOPPED"
-                    except:
-                        status = "STOPPED"
+                    is_running = any(container_info[n] == "running" for n in matching_containers)
+                    status = "RUNNING" if is_running else "STOPPED"
                      
                 results[d] = status
+                
+    # Update cache
+    _status_cache["apps"] = results
+    _status_cache["last_updated"] = time.time()
                 
     return jsonify({"apps": results}), 200
 
@@ -801,38 +1037,31 @@ def suite_uninstall_endpoint():
 @app.route("/suite/up", methods=["POST"])
 @require_capability("manage", "system:suite")
 def suite_up():
-    data = request.json or {}
-    app_id = data.get("appId", "").replace("-integration", "")
-    if not app_id: return jsonify({"error": "Missing appId"}), 400
-    
-    import subprocess
-    cmd = ["python", "-m", "proxion_keyring.cli", "suite", "up", app_id]
-    keyring_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-    core_src = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../proxion-core/src"))
-    
-    env = os.environ.copy()
-    env["PYTHONPATH"] = f"{keyring_root}{os.pathsep}{core_src}{os.pathsep}{env.get('PYTHONPATH', '')}"
-    
-    subprocess.Popen(cmd, cwd=keyring_root, env=env)
-    return jsonify({"status": "Starting"}), 202
+    """V7.12: Start integration via manager orchestration."""
+    app_id = (request.json or {}).get("appId")
+    return jsonify(manager.orchestrate_suite("up", app_id)), 200
 
 @app.route("/suite/down", methods=["POST"])
 @require_capability("manage", "system:suite")
 def suite_down():
-    data = request.json or {}
-    app_id = data.get("appId", "").replace("-integration", "")
-    if not app_id: return jsonify({"error": "Missing appId"}), 400
-    
-    import subprocess
-    cmd = ["python", "-m", "proxion_keyring.cli", "suite", "down", app_id]
-    keyring_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-    core_src = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../proxion-core/src"))
-    
-    env = os.environ.copy()
-    env["PYTHONPATH"] = f"{keyring_root}{os.pathsep}{core_src}{os.pathsep}{env.get('PYTHONPATH', '')}"
-    
-    subprocess.Popen(cmd, cwd=keyring_root, env=env)
-    return jsonify({"status": "Stopping"}), 202
+    """V7.12: Stop integration via manager orchestration."""
+    app_id = (request.json or {}).get("appId")
+    return jsonify(manager.orchestrate_suite("down", app_id)), 200
+
+@app.route("/suite/restart", methods=["POST"])
+@require_capability("manage", "system:suite")
+def suite_restart():
+    """V7.12: Restart integration via manager orchestration."""
+    app_id = (request.json or {}).get("appId")
+    return jsonify(manager.orchestrate_suite("restart", app_id)), 200
+
+@app.route("/suite/uninstall", methods=["POST"])
+@require_capability("manage", "system:suite")
+def suite_uninstall():
+    """V7.12: Uninstall integration (delegates to stop + manual cleanup)."""
+    app_id = (request.json or {}).get("appId")
+    # For now, uninstall is just stopping. Full uninstallation needs more logic.
+    return jsonify(manager.orchestrate_suite("down", app_id)), 200
 
 @app.route("/suite/sync/<app_id>", methods=["POST"])
 @require_capability("manage", "system:suite")
@@ -1119,13 +1348,120 @@ def bootstrap():
         )
         
         return jsonify(material.to_dict()), 200
-
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+
+# ============================================================================
+# V7 SECURITY API ENDPOINTS
+# ============================================================================
+
+@app.route("/system/security/canary-status", methods=["GET"])
+@require_capability("read", "system:security")
+def get_canary_status():
+    """V7.13: Get canary deployment status."""
+    try:
+        if not hasattr(manager, 'guardian') or manager.guardian is None:
+            return jsonify({"status": "NO_CANARY", "message": "Guardian not initialized"}), 200
+        status = manager.guardian.check_canary_status()
+        return jsonify(status), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/system/security/network-audit", methods=["GET"])
+@require_capability("read", "system:security")
+def network_audit():
+    """V7.6: Audit network segmentation compliance."""
+    try:
+        from proxion_keyring.core.network_manager import NetworkManager
+        nm = NetworkManager()
+        results = nm.audit_network_segmentation()
+        return jsonify(results), 200
+    except ImportError:
+        return jsonify({"error": "NetworkManager not available", "compliant": [], "non_compliant": [], "unassigned": []}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/system/security/sign-image", methods=["POST"])
+@require_capability("write", "system:security")
+def sign_image():
+    """V7.9: Manually sign a container image."""
+    try:
+        image_name = request.json.get("image")
+        if not image_name:
+            return jsonify({"error": "Missing 'image' parameter"}), 400
+        
+        from proxion_keyring.core.image_signer import ImageSigner
+        signer = ImageSigner(manager.pod_local_root)
+        result = signer.sign_image(image_name)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/system/security/compliance-report", methods=["POST"])
+@require_capability("read", "system:security")
+def generate_compliance_report():
+    """V7.10: Generate monthly compliance report."""
+    try:
+        from proxion_keyring.core.compliance import ComplianceReporter
+        reporter = ComplianceReporter(manager.pod_local_root)
+        
+        pdf_path = reporter.generate_monthly_report(manager.medic_stats)
+        json_path = reporter.generate_json_report(manager.medic_stats)
+        
+        return jsonify({
+            "pdf": pdf_path,
+            "json": json_path,
+            "status": "generated"
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/system/security/isolate-container", methods=["POST"])
+@require_capability("write", "system:security")
+def isolate_container():
+    """V7.14: Manually isolate a container (zero-day response)."""
+    try:
+        container = request.json.get("container")
+        if not container:
+            return jsonify({"error": "Missing 'container' parameter"}), 400
+        
+        from proxion_keyring.core.zero_day_monitor import ZeroDayMonitor
+        monitor = ZeroDayMonitor(manager.pod_local_root, manager.guardian)
+        success = monitor.isolate_container(container)
+        
+        return jsonify({
+            "success": success,
+            "container": container,
+            "status": "isolated" if success else "failed"
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/system/security/sbom/<container>", methods=["GET"])
+@require_capability("read", "system:security")
+def get_sbom(container):
+    """V7.2: Retrieve SBOM for a container."""
+    try:
+        sbom_path = os.path.join(manager.pod_local_root, "sboms", f"{container}_sbom.json")
+        if not os.path.exists(sbom_path):
+            return jsonify({"error": "SBOM not found"}), 404
+        
+        with open(sbom_path) as f:
+            sbom = json.load(f)
+        
+        return jsonify(sbom), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
+
     # Start Pod Proxy in background
     proxy = PodProxyServer(manager)
     threading.Thread(target=proxy.run, daemon=True).start()
@@ -1158,7 +1494,7 @@ if __name__ == "__main__":
                     os.makedirs(core_storage, exist_ok=True)
                 sources.insert(0, f"System_Core|{core_storage}")
                 
-                cmd = ["python", fuse_script, mount_point] + sources
+                cmd = ["python", fuse_script, mount_point]
                 subprocess.Popen(cmd)
         except Exception as e:
             print(f"RS: Auto-mount failed: {e}")

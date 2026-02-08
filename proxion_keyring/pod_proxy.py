@@ -289,9 +289,14 @@ class PodProxyServer:
     HTTP Proxy (localhost:8089) that attaches Solid Auth and routes via HybridHub.
     """
     
+    def is_alive(self):
+        """Mock for facade health checks."""
+        return True
+
     def __init__(self, manager: KeyringManager):
         self.manager = manager
         self.manager.pod_proxy = self  # Register for Lens discovery
+        self.manager.stash.pod_proxy = self # Inject for storage API
         # Initialize Hybrid Hub
         self.hub = HybridHub()
         self.hub.mount("stash", LocalProvider(self.manager.pod_local_root))
@@ -304,7 +309,7 @@ class PodProxyServer:
         from wsgidav.wsgidav_app import WsgiDAVApp
         config = {
             "host": "0.0.0.0",
-            "port": 8089,
+            "port": 8889,
             "provider_mapping": {"/": ProxionDAVProvider(self.hub)},
             "simple_dc": {"user_mapping": {"*": True}}, # Anonymous for local bridge
             "verbose": 1,
@@ -370,7 +375,21 @@ class PodProxyServer:
 
             decision = self.manager.validate_token(token_json, ctx_data, proof)
             if not decision.allowed:
+                self.manager.log_event(
+                    action=f"REJECTED {ctx_data['action']}",
+                    resource=ctx_data['resource'],
+                    subject=decision.reason or "Unknown",
+                    type="error"
+                )
                 return jsonify({"error": f"Unauthorized: {decision.reason}"}), 403
+
+            # Log success
+            self.manager.log_event(
+                action=ctx_data['action'],
+                resource=ctx_data['resource'],
+                subject="Solid Client", # We could extract more info from decision if available
+                type="success" if ctx_data['action'] in ["WRITE", "CREATE", "DELETE"] else "info"
+            )
 
             # 2. HYBRID HUB ROUTING
             try:
@@ -474,7 +493,7 @@ class PodProxyServer:
 
         return "\n".join(turtle)
 
-    def run(self, port=8089):
+    def run(self, port=8889):
         print(f"Pod Proxy running on http://0.0.0.0:{port}")
         print(f"Solid API: http://localhost:{port}/pod")
         print(f"WebDAV API: http://localhost:{port}/dav")

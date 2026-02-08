@@ -13,6 +13,12 @@ import { HomarrTutorial } from './components/HomarrTutorial';
 import { RelayManager } from './components/RelayManager';
 import { StorageManager } from './components/StorageManager';
 import { IdentityManager } from './components/IdentityManager';
+import { PrivacyShield } from './components/PrivacyShield';
+import { FederationInvite } from './components/FederationInvite';
+import { HealthGrid } from './components/HealthGrid';
+import { Librarian } from './components/Librarian';
+import { AuditFeed } from './components/AuditFeed';
+import { Guardian } from './components/Guardian';
 import './App.css';
 
 function App() {
@@ -173,6 +179,12 @@ function App() {
   }, []); // Run only on mount
 
   useEffect(() => {
+    if (proxionToken && session?.info.webId) {
+      window.electronAPI?.setSessionContext(session.info.webId, proxionToken);
+    }
+  }, [proxionToken, session]);
+
+  useEffect(() => {
     if (proxionToken) fetchPeers();
     const interval = setInterval(fetchPeers, 5000);
     return () => clearInterval(interval);
@@ -246,48 +258,44 @@ function App() {
     localStorage.removeItem('proxion_token');
   };
 
-  const handleOpenApp = async (app) => {
-    // Check if valid app
-    const existing = activeApps.find(a => a.id === app.id);
-    let updatedApp = existing || app;
-
-    // If app is new OR missing credentials, fetch them
-    if (!existing || !existing.credentials) {
-      let credentials = null;
-      try {
-        const resp = await fetch(`http://127.0.0.1:8788/suite/credentials/${app.id}`, {
-          headers: { 'Proxion-Token': proxionToken }
-        });
-        if (resp.ok) {
-          credentials = await resp.json();
-          console.log(`[Proxion SSO] Credentials fetched for ${app.name}`);
-        } else {
-          console.warn(`[Proxion SSO] Backend returned ${resp.status} for ${app.id}`);
-        }
-      } catch (err) {
-        console.error(`[Proxion SSO] Failed to fetch credentials:`, err);
-      }
-
-      updatedApp = { ...updatedApp, credentials };
-
-      if (existing) {
-        // Update existing in place
-        setActiveApps(prev => prev.map(a => a.id === app.id ? updatedApp : a));
-      } else {
-        // Add new
-        setActiveApps(prev => [...prev, updatedApp]);
-      }
-    }
-
+  const handleOpenApp = (app) => {
+    setActiveApps(prev => {
+      const existing = prev.find(a => a.id === app.id);
+      if (existing) return prev;
+      return [...prev, {
+        ...app,
+        url: app.url || `http://127.0.0.1:${app.port || 80}`,
+        icon: app.icon || `http://127.0.0.1:8788/suite/icon/${app.id}`
+      }];
+    });
     setActiveTab(`app-${app.id}`);
   };
 
   const handleCloseApp = (e, appId) => {
     e.stopPropagation();
-    const newApps = activeApps.filter(a => a.id !== appId);
-    setActiveApps(newApps);
-    if (activeTab === `app-${appId}`) {
-      setActiveTab('apps');
+    setActiveApps(prev => prev.filter(a => a.id !== appId));
+    setActiveTab(current => current === `app-${appId}` ? 'apps' : current);
+  };
+
+  const handleOrchestrate = async (action) => {
+    if (!confirm(`Are you sure you want to ${action} the entire suite?`)) return;
+    try {
+      const resp = await fetch("http://127.0.0.1:8788/suite/orchestrate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Proxion-Token": proxionToken
+        },
+        body: JSON.stringify({ action, target: 'all' })
+      });
+      if (resp.ok) {
+        alert(`${action} command sent to suite.`);
+      } else {
+        const errorData = await resp.json();
+        alert(`Error: ${errorData.error}`);
+      }
+    } catch (err) {
+      console.error("Orchestration failed:", err);
     }
   };
 
@@ -413,6 +421,15 @@ function App() {
                 <button className={activeTab === 'containers' ? 'active' : ''} onClick={() => setActiveTab('containers')}>
                   <span className="icon">🐳</span> Containers
                 </button>
+                <button className={activeTab === 'security' ? 'active' : ''} onClick={() => setActiveTab('security')}>
+                  <span className="icon">🛡️</span> Security
+                </button>
+                <button className={activeTab === 'librarian' ? 'active' : ''} onClick={() => setActiveTab('librarian')}>
+                  <span className="icon">📚</span> Librarian
+                </button>
+                <button className={activeTab === 'fleet' ? 'active' : ''} onClick={() => setActiveTab('fleet')}>
+                  <span className="icon">📱</span> Fleet
+                </button>
 
               </div>
 
@@ -444,32 +461,37 @@ function App() {
           </aside>
 
           <main className="main-viewport">
-            {activeTab === 'apps' && (
-              <div className="view-container">
-                <header className="view-header">
-                  <h1>App Library</h1>
-                  <p>Deploy private integrations to your suite.</p>
-                </header>
-                <InstallationCenter
-                  proxionToken={proxionToken}
-                  onOpenApp={handleOpenApp}
-                />
-              </div>
-            )}
+            <div
+              className="view-container"
+              style={{ display: activeTab === 'apps' ? 'block' : 'none' }}
+            >
+              <header className="view-header">
+                <h1>App Library</h1>
+                <p>Deploy private integrations to your suite.</p>
+              </header>
+              <InstallationCenter
+                proxionToken={proxionToken}
+                onOpenApp={handleOpenApp}
+              />
+            </div>
 
             {/* Render ALL active apps as hidden webviews to preserve state */}
             {activeApps.map(app => (
               <div
                 key={app.id}
                 className="webview-container"
-                style={{ display: activeTab === `app-${app.id}` ? 'flex' : 'none' }}
+                style={{
+                  display: activeTab === `app-${app.id}` ? 'flex' : 'none',
+                  flex: 1,
+                  height: '100%'
+                }}
               >
                 <webview
                   id={`webview-${app.id}`}
                   src={app.url}
-                  style={{ width: '100%', height: 'calc(100% - 24px)' }}
+                  partition={`persist:${app.id}`}
+                  style={{ width: '100%', height: '100%', border: 'none' }}
                 />
-
               </div>
             ))}
 
@@ -479,9 +501,34 @@ function App() {
                   <h1>Mesh Network</h1>
                   <p>Global encrypted backbone and local discovery.</p>
                 </header>
+                <PrivacyShield proxionToken={proxionToken} />
                 <RelayManager proxionToken={proxionToken} />
                 <MeshManager proxionToken={proxionToken} peers={peers} />
                 <Discovery proxionToken={proxionToken} />
+              </div>
+            )}
+
+            {activeTab === 'containers' && (
+              <div className="view-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '2rem' }}>
+                <header className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <div>
+                    <h1>Suite Orchestration</h1>
+                    <p>Manage container health and bulk power actions.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn-secondary" onClick={() => handleOrchestrate('restart')}>🔄 Restart All</button>
+                    <button className="btn-danger-small" onClick={() => handleOrchestrate('down')}>🛑 Stop All</button>
+                    <button className="btn-primary" onClick={() => handleOrchestrate('up')}>🚀 Start All</button>
+                  </div>
+                </header>
+                <HealthGrid proxionToken={proxionToken} />
+                <div style={{ flex: 1, marginTop: '2rem', minHeight: '400px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <webview
+                    src="http://127.0.0.1:9001"
+                    style={{ width: '100%', height: '100%' }}
+                    title="Portainer"
+                  />
+                </div>
               </div>
             )}
 
@@ -494,6 +541,40 @@ function App() {
                 <StorageManager proxionToken={proxionToken} />
               </div>
             )}
+
+            {activeTab === 'librarian' && (
+              <div className="view-container" style={{ height: 'calc(100% - 100px)' }}>
+                <header className="view-header">
+                  <h1>The Librarian</h1>
+                  <p>Web-native browsing of your Unified Stash. No drivers required.</p>
+                </header>
+                <Librarian proxionToken={proxionToken} />
+              </div>
+            )}
+
+            {activeTab === 'fleet' && (
+              <div className="view-container">
+                <header className="view-header">
+                  <h1>Fleet Management</h1>
+                  <p>Invite devices and manage federation access tokens.</p>
+                </header>
+                <FederationInvite proxionToken={proxionToken} />
+              </div>
+            )}
+
+            {activeTab === 'security' && (
+              <div className="view-container">
+                <header className="view-header">
+                  <h1>Security</h1>
+                  <p>Consolidated security intelligence and live audit trail.</p>
+                </header>
+                <Guardian proxionToken={proxionToken} />
+                <div style={{ marginTop: '20px' }}>
+                  <AuditFeed proxionToken={proxionToken} />
+                </div>
+              </div>
+            )}
+
 
             {activeTab === 'identity' && (
               <div className="view-container">
@@ -533,15 +614,6 @@ function App() {
               </div>
             )}
 
-            {activeTab === 'containers' && (
-              <div className="view-container" style={{ height: '100%', padding: '0' }}>
-                <iframe
-                  src="http://127.0.0.1:9001"
-                  style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
-                  title="Portainer"
-                />
-              </div>
-            )}
           </main>
         </div>
       )

@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog } from 'electron';
+import { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog, nativeImage } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 
@@ -10,7 +11,7 @@ const __dirname = path.dirname(__filename);
 const IS_DEV = process.env.NODE_ENV === 'development';
 
 // Force local origins to be treated as secure contexts for Crypto API
-app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', 'http://localhost:8086,http://127.0.0.1:8086,http://localhost:5173');
+app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', 'http://127.0.0.1:8086,http://127.0.0.1:5173');
 app.commandLine.appendSwitch('ignore-certificate-errors'); // Allow self-signed local certs for our suite
 app.commandLine.appendSwitch('user-data-dir', path.join(app.getPath('userData'), 'chrome-data')); // Help persist the flag context
 
@@ -21,10 +22,53 @@ const PY_PORT = 8788; // Port RS runs on
 let mainWindow;
 let tray;
 let pyProc = null;
+let sessionContext = { webId: null, token: null };
+let managedPorts = new Set(['8787', '8788', '9999']); // Core ports
+
+// --- Loader ---
+const loadAppRegistry = () => {
+    try {
+        const appsPath = path.join(__dirname, '../src/data/apps.json');
+        if (fs.existsSync(appsPath)) {
+            const apps = JSON.parse(fs.readFileSync(appsPath, 'utf8'));
+            apps.forEach(app => {
+                if (app.port && app.port !== 0) {
+                    managedPorts.add(app.port.toString());
+                }
+            });
+            console.log(`[Main]: Loaded ${managedPorts.size} managed ports from registry.`);
+        }
+    } catch (err) {
+        console.error('[Main]: Failed to load apps.json:', err);
+    }
+};
 
 // --- Backend Management ---
-const startPythonBackend = () => {
+const startPythonBackend = async () => {
     if (pyProc) return;
+
+    // Check if backend is already running (e.g. manual CLI start)
+    try {
+        const resp = await fetch(`http://127.0.0.1:${PY_PORT}/mesh/dns/status`, { timeout: 500 });
+        if (resp.ok) {
+            console.log('[Main]: Backend already running on port ' + PY_PORT + '. Skipping spawn.');
+            return;
+        }
+    } catch (e) {
+        // Not running, proceed to start
+    }
+
+    // Also check if Pod Proxy (8089) is already running
+    try {
+        const resp = await fetch('http://127.0.0.1:8889/pod/', { timeout: 500 });
+        if (resp.status === 401 || resp.ok) {
+            console.log('[Main]: Pod Proxy already running on port 8889. Skipping spawn.');
+            return;
+        }
+    } catch (e) {
+        // Not running, proceed to start
+    }
+
     console.log('[Main]: Starting Python Backend...');
 
     // We assume the user has run the setup wizard, so Environment variables are set globally?
@@ -90,9 +134,26 @@ const createWindow = () => {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            webviewTag: true, // Enable <webview> for integrated tabs
-            preload: path.join(__dirname, 'preload.cjs'), // Use join instead of resolve
+            webviewTag: true,
+            preload: path.join(__dirname, 'preload.cjs'),
         },
+    });
+
+    // Intercept requests to inject Proxion Capability tokens
+    const filter = {
+        urls: ['http://127.0.0.1/*']
+    };
+
+    mainWindow.webContents.session.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
+        const url = new URL(details.url);
+
+        // Dynamic injection for all managed services
+        if (sessionContext.token && (managedPorts.has(url.port) || url.port === '')) {
+            // Note: url.port is empty for default ports (80/443), usually not used for local services
+            details.requestHeaders['Authorization'] = `Bearer ${sessionContext.token}`;
+            details.requestHeaders['X-Proxion-WebID'] = sessionContext.webId;
+        }
+        callback({ requestHeaders: details.requestHeaders });
     });
 
     // Special handling for webviews to use our SSO injector
@@ -103,7 +164,7 @@ const createWindow = () => {
     });
 
     const startUrl = IS_DEV
-        ? 'http://localhost:5173'
+        ? 'http://127.0.0.1:5173'
         : `file://${path.join(__dirname, '../dist/index.html')}`;
 
     mainWindow.loadURL(startUrl);
@@ -122,25 +183,43 @@ const createWindow = () => {
 
 // --- Tray ---
 const createTray = () => {
-    const iconPath = path.join(__dirname, '../public/vite.svg'); // Placeholder icon
-    tray = new Tray(iconPath);
+    try {
+        // Try to use a proper icon, fallback to a simple colored square if not found
+        const iconPath = path.join(__dirname, '../public/vite.svg');
+        let icon;
 
-    const contextMenu = Menu.buildFromTemplate([
-        { label: 'Show Dashboard', click: () => mainWindow.show() },
-        { type: 'separator' },
-        {
-            label: 'Quit proxion-keyring', click: () => {
-                app.isQuitting = true;
-                killPythonBackend();
-                app.quit();
+        if (fs.existsSync(iconPath)) {
+            // Create a simple 16x16 icon since SVG may not work directly
+            icon = nativeImage.createFromPath(iconPath);
+            if (icon.isEmpty()) {
+                // Fallback: create a small colored icon
+                icon = nativeImage.createEmpty();
             }
+        } else {
+            icon = nativeImage.createEmpty();
         }
-    ]);
 
-    tray.setToolTip('proxion-keyring Secure Link');
-    tray.setContextMenu(contextMenu);
+        tray = new Tray(icon.isEmpty() ? nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAOUlEQVQ4jWNgGAWjYBSMglGAD/z//58RnzxcAwMDA8PFixflCdrgGhgYGBhOnDhxmJQ4HDVgFNALAAAGTwPffHUZhAAAAABJRU5ErkJggg==') : icon);
 
-    tray.on('double-click', () => mainWindow.show());
+        const contextMenu = Menu.buildFromTemplate([
+            { label: 'Show Dashboard', click: () => mainWindow.show() },
+            { type: 'separator' },
+            {
+                label: 'Quit proxion-keyring', click: () => {
+                    app.isQuitting = true;
+                    killPythonBackend();
+                    app.quit();
+                }
+            }
+        ]);
+
+        tray.setToolTip('proxion-keyring Secure Link');
+        tray.setContextMenu(contextMenu);
+
+        tray.on('double-click', () => mainWindow.show());
+    } catch (err) {
+        console.warn('[Main]: Failed to create tray icon:', err.message);
+    }
 };
 
 // --- Lifecycle ---
@@ -164,8 +243,14 @@ ipcMain.handle('select-directory', async () => {
     return filePaths[0];
 });
 
-app.whenReady().then(() => {
-    startPythonBackend();
+ipcMain.on('set-session-context', (event, { webId, token }) => {
+    console.log(`[Main]: Session context updated for ${webId}`);
+    sessionContext = { webId, token };
+});
+
+app.whenReady().then(async () => {
+    loadAppRegistry();
+    await startPythonBackend();
     createWindow();
     createTray();
 

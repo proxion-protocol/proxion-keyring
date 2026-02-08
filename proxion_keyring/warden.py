@@ -5,6 +5,10 @@ from typing import Set, Dict
 class Warden:
     """The Perimeter Guard: AD-blocking and Tracker filtering."""
     
+    def is_alive(self):
+        """Mock for facade health checks."""
+        return True
+    
     def __init__(self, blocklist_url="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"):
         self.blocklist_url = blocklist_url
         self.blocked_domains: Set[str] = set()

@@ -19,6 +19,11 @@ class OSAdapter(ABC):
     def reset_dns(self, interface_index):
         """Reset DNS to automatic (DHCP) for the given interface."""
         pass
+    
+    @abstractmethod
+    def get_dns(self, interface_index):
+        """Get DNS server addresses for the given interface."""
+        pass
 
     @abstractmethod
     @abstractmethod
@@ -41,8 +46,23 @@ class WindowsAdapter(OSAdapter):
         except:
             return None
 
+    def is_admin(self):
+        """Check if the current process has administrative privileges."""
+        import ctypes
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except:
+            return False
+
     def _elevate_ps(self, ps_cmd):
+        """Execute a PowerShell command with UAC elevation if needed."""
+        if self.is_admin():
+            print(f"OSAdapter: Already elevated, running: {ps_cmd}")
+            return subprocess.run(["powershell", "-Command", ps_cmd])
+            
+        print(f"OSAdapter: Requesting elevation for: {ps_cmd}")
         elevated_cmd = f"Start-Process powershell -Verb RunAs -ArgumentList '-Command \"{ps_cmd}\"'"
+        # Use shell=True for start-process to ensure it detaches properly from the parent console if needed
         return subprocess.run(["powershell", "-Command", elevated_cmd])
 
     def set_dns(self, interface_index, addresses):
@@ -55,6 +75,18 @@ class WindowsAdapter(OSAdapter):
     def reset_dns(self, interface_index):
         ps_cmd = f"Set-DnsClientServerAddress -InterfaceIndex {interface_index} -ResetServerAddresses"
         return self._elevate_ps(ps_cmd)
+
+    def get_dns(self, interface_index):
+        # Using PowerShell to get the DNS server addresses
+        ps_cmd = f"(Get-DnsClientServerAddress -InterfaceIndex {interface_index} -AddressFamily IPv4).ServerAddresses"
+        cmd = ["powershell", "-Command", ps_cmd]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        try:
+            # Output might be a comma-separated list or multiple lines
+            addrs = [a.strip() for a in res.stdout.replace('\n', ',').split(',') if a.strip()]
+            return addrs
+        except:
+            return []
 
     def get_docker_compose_cmd(self, app_path, local_storage, action=["up", "-d"]):
         # On Windows, we generate the proxion-local override to bypass P: drive
@@ -84,7 +116,9 @@ class WindowsAdapter(OSAdapter):
                         host_part = local_v.split(":")[0]
                         os.makedirs(host_part.replace("/", "\\"), exist_ok=True)
             
-            cmd = ["docker-compose", "-f", "docker-compose.yml"]
+            # Use 'docker compose' (v2) on Windows to avoid API version mismatches (1.25 error)
+            # Preference: docker compose > docker-compose
+            cmd = ["docker", "compose", "-f", "docker-compose.yml"]
             if os.path.exists(os.path.join(app_path, "docker-compose.override.yml")):
                 cmd += ["-f", "docker-compose.override.yml"]
                 
@@ -99,7 +133,7 @@ class WindowsAdapter(OSAdapter):
             return cmd
         except Exception as e:
             # Fallback to standard if override fails
-            return ["docker-compose", "up", "-d"]
+            return ["docker", "compose", "up", "-d"]
 
     def check_docker_health(self):
         """Verify Docker Desktop proxy settings on Windows."""
@@ -149,6 +183,11 @@ class LinuxAdapter(OSAdapter):
     def reset_dns(self, interface_index):
         cmd = ["sudo", "resolvectl", "revert", str(interface_index)]
         return subprocess.run(cmd)
+
+    def get_dns(self, interface_index):
+        cmd = ["sh", "-c", f"resolvectl dns {interface_index} | awk '{{print $4}}'"]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        return [res.stdout.strip()] if res.stdout.strip() else []
 
     def get_docker_compose_cmd(self, app_path, local_storage, action=["up", "-d"]):
         # Linux can typically mount FUSE drives directly, so no override needed

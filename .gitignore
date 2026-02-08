@@ -19,3 +19,12 @@ app/node_modules/
 tickets*.json
 *.jsonld
 !test-policy.jsonld
+
+# Forge V3 Temporary Files
+test_*.py
+debug_*.py
+update_*.py
+run_forge_v3.py
+*_run.log
+forge_v3_test.log
+fleet_hardening_run.log

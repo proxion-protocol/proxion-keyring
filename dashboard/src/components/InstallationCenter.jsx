@@ -1,17 +1,118 @@
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import appsRegistry from '../data/apps.json';
 
-export const InstallationCenter = ({ proxionToken, onOpenApp }) => {
-    const [apps, setApps] = useState(appsRegistry);
+const AppCard = React.memo(({ app, appStatus, isWorking, onAction, onOpenApp }) => {
+    const iconUrl = `http://127.0.0.1:8788/suite/icon/${app.id}`;
+
+    return (
+        <div className={`app-card-modern ${appStatus.toLowerCase()}`}>
+            <div className="card-top">
+                <div className="logo-wrapper">
+                    <img
+                        src={iconUrl}
+                        alt={app.name}
+                        className="app-logo"
+                        crossOrigin="anonymous"
+                        loading="lazy"
+                        onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.querySelector('.app-icon-backup').style.display = 'block';
+                        }}
+                    />
+                    <div className={`app-icon-backup icon-${app.icon || 'default'}`} style={{ display: 'none' }}></div>
+                </div>
+                <div className="status-badge">
+                    <div className={`status-dot ${appStatus.toLowerCase()}`}></div>
+                    <span>{appStatus === 'UNINSTALLED' ? 'Available' : appStatus === 'INSTALLING' ? 'Installing...' : appStatus}</span>
+                </div>
+            </div>
+
+            <div className="card-content">
+                <h4>{app.name}</h4>
+                <p>{app.description}</p>
+            </div>
+
+            <div className="card-actions">
+                {appStatus === 'INSTALLING' ? (
+                    <button className="btn-modern-primary" disabled style={{ opacity: 0.8, cursor: 'wait' }}>
+                        <div className="spinner-tiny"></div>
+                        <span>Configuring...</span>
+                    </button>
+                ) : appStatus === 'UNINSTALLED' ? (
+                    <button
+                        className="btn-modern-primary"
+                        disabled={isWorking}
+                        onClick={() => onAction(app.id, 'install')}
+                    >
+                        {isWorking ? (
+                            <>
+                                <div className="spinner-tiny"></div>
+                                <span>Requesting...</span>
+                            </>
+                        ) : 'Install App'}
+                    </button>
+                ) : (
+                    <div className="action-row">
+                        <button
+                            className={`btn-modern-icon ${appStatus === 'RUNNING' ? 'stop' : 'start'}`}
+                            title={appStatus === 'RUNNING' ? 'Stop Container' : 'Start Container'}
+                            onClick={() => onAction(app.id, appStatus === 'RUNNING' ? 'down' : 'up')}
+                        >
+                            {appStatus === 'RUNNING' ? '⏹' : '▶'}
+                        </button>
+                        <button
+                            className="btn-modern-secondary"
+                            onClick={() => onOpenApp({
+                                id: app.id,
+                                name: app.name,
+                                url: `http://127.0.0.1:${app.port || 80}`,
+                                icon: iconUrl
+                            })}
+                        >
+                            Open UI
+                        </button>
+
+                        {appStatus !== 'RUNNING' && (
+                            <button
+                                className="btn-modern-icon trash"
+                                title="Uninstall App"
+                                onClick={() => {
+                                    if (window.confirm(`Are you sure you want to uninstall ${app.name}? Data will be preserved.`)) {
+                                        onAction(app.id, 'uninstall');
+                                    }
+                                }}
+                            >
+                                🗑
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}, (prev, next) => {
+    return prev.appStatus === next.appStatus &&
+        prev.isWorking === next.isWorking &&
+        prev.app.id === next.app.id;
+});
+
+export const InstallationCenter = React.memo(({ proxionToken, onOpenApp }) => {
     const [filter, setFilter] = useState('All');
-    const [status, setStatus] = useState({});
+    // Load cached status from localStorage for instant O(1) display
+    const [status, setStatus] = useState(() => {
+        try {
+            const cached = localStorage.getItem('proxion_app_status');
+            return cached ? JSON.parse(cached) : {};
+        } catch {
+            return {};
+        }
+    });
     const [installingId, setInstallingId] = useState(null);
     const [pendingInstalls, setPendingInstalls] = useState({});
 
-    const categories = ['All', ...new Set(appsRegistry.map(a => a.category))];
+    const categories = useMemo(() => ['All', ...new Set(appsRegistry.map(a => a.category))], []);
 
-    const fetchStatus = async () => {
+    const fetchStatus = useCallback(async () => {
         if (!proxionToken) return;
         try {
             const resp = await fetch('http://127.0.0.1:8788/suite/status', {
@@ -20,7 +121,17 @@ export const InstallationCenter = ({ proxionToken, onOpenApp }) => {
             const data = await resp.json();
             const remoteApps = data.apps || {};
 
-            setStatus(remoteApps);
+            // Functional update with shallow comparison
+            setStatus(prev => {
+                const hasChanged = Object.keys(remoteApps).length !== Object.keys(prev).length ||
+                    Object.keys(remoteApps).some(id => remoteApps[id] !== prev[id]);
+                if (hasChanged) {
+                    // Persist to localStorage for instant load next time
+                    localStorage.setItem('proxion_app_status', JSON.stringify(remoteApps));
+                    return remoteApps;
+                }
+                return prev;
+            });
 
             setPendingInstalls(prev => {
                 const next = { ...prev };
@@ -44,15 +155,15 @@ export const InstallationCenter = ({ proxionToken, onOpenApp }) => {
         } catch (err) {
             console.error("Failed to fetch suite status", err);
         }
-    };
+    }, [proxionToken]);
 
     useEffect(() => {
         fetchStatus();
         const interval = setInterval(fetchStatus, 5000);
         return () => clearInterval(interval);
-    }, [proxionToken]);
+    }, [fetchStatus]);
 
-    const handleAction = async (appId, action) => {
+    const handleAction = useCallback(async (appId, action) => {
         if (action === 'install') setInstallingId(appId);
 
         try {
@@ -88,9 +199,11 @@ export const InstallationCenter = ({ proxionToken, onOpenApp }) => {
         } finally {
             if (action === 'install') setInstallingId(null);
         }
-    };
+    }, [proxionToken, fetchStatus]);
 
-    const filteredApps = apps.filter(a => filter === 'All' || a.category === filter);
+    const filteredApps = useMemo(() =>
+        appsRegistry.filter(a => filter === 'All' || a.category === filter),
+        [filter]);
 
     return (
         <div className="installation-center">
@@ -107,100 +220,16 @@ export const InstallationCenter = ({ proxionToken, onOpenApp }) => {
             </div>
 
             <div className="app-grid">
-                {filteredApps.map(app => {
-                    let appStatus = status[app.id] || 'UNINSTALLED';
-                    if (pendingInstalls[app.id]) appStatus = 'INSTALLING';
-
-                    const isWorking = installingId === app.id;
-                    const iconUrl = `http://127.0.0.1:8788/suite/icon/${app.id}`;
-
-                    return (
-                        <div className={`app-card-modern ${appStatus.toLowerCase()}`} key={app.id}>
-                            <div className="card-top">
-                                <div className="logo-wrapper">
-                                    <img
-                                        src={iconUrl}
-                                        alt={app.name}
-                                        className="app-logo"
-                                        crossOrigin="anonymous"
-                                        loading="lazy"
-                                        onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.parentElement.querySelector('.app-icon-backup').style.display = 'block';
-                                        }}
-                                    />
-                                    <div className={`app-icon-backup icon-${app.icon || 'default'}`} style={{ display: 'none' }}></div>
-                                </div>
-                                <div className="status-badge">
-                                    <div className={`status-dot ${appStatus.toLowerCase()}`}></div>
-                                    <span>{appStatus === 'UNINSTALLED' ? 'Available' : appStatus === 'INSTALLING' ? 'Installing...' : appStatus}</span>
-                                </div>
-                            </div>
-
-                            <div className="card-content">
-                                <h4>{app.name}</h4>
-                                <p>{app.description}</p>
-                            </div>
-
-                            <div className="card-actions">
-                                {appStatus === 'INSTALLING' ? (
-                                    <button className="btn-modern-primary" disabled style={{ opacity: 0.8, cursor: 'wait' }}>
-                                        <div className="spinner-tiny"></div>
-                                        <span>Configuring...</span>
-                                    </button>
-                                ) : appStatus === 'UNINSTALLED' ? (
-                                    <button
-                                        className="btn-modern-primary"
-                                        disabled={isWorking}
-                                        onClick={() => handleAction(app.id, 'install')}
-                                    >
-                                        {isWorking ? (
-                                            <>
-                                                <div className="spinner-tiny"></div>
-                                                <span>Requesting...</span>
-                                            </>
-                                        ) : 'Install App'}
-                                    </button>
-                                ) : (
-                                    <div className="action-row">
-                                        <button
-                                            className={`btn-modern-icon ${appStatus === 'RUNNING' ? 'stop' : 'start'}`}
-                                            title={appStatus === 'RUNNING' ? 'Stop Container' : 'Start Container'}
-                                            onClick={() => handleAction(app.id, appStatus === 'RUNNING' ? 'down' : 'up')}
-                                        >
-                                            {appStatus === 'RUNNING' ? '⏹' : '▶'}
-                                        </button>
-                                        <button
-                                            className="btn-modern-secondary"
-                                            onClick={() => onOpenApp({
-                                                id: app.id,
-                                                name: app.name,
-                                                url: `http://127.0.0.1:${app.port || 80}`,
-                                                icon: iconUrl
-                                            })}
-                                        >
-                                            Open UI
-                                        </button>
-
-                                        {appStatus !== 'RUNNING' && (
-                                            <button
-                                                className="btn-modern-icon trash"
-                                                title="Uninstall App"
-                                                onClick={() => {
-                                                    if (window.confirm(`Are you sure you want to uninstall ${app.name}? Data will be preserved.`)) {
-                                                        handleAction(app.id, 'uninstall');
-                                                    }
-                                                }}
-                                            >
-                                                🗑
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
+                {filteredApps.map(app => (
+                    <AppCard
+                        key={app.id}
+                        app={app}
+                        appStatus={pendingInstalls[app.id] ? 'INSTALLING' : (status[app.id] || 'UNINSTALLED')}
+                        isWorking={installingId === app.id}
+                        onAction={handleAction}
+                        onOpenApp={onOpenApp}
+                    />
+                ))}
             </div>
 
             <style>{`
@@ -243,4 +272,4 @@ export const InstallationCenter = ({ proxionToken, onOpenApp }) => {
             `}</style>
         </div>
     );
-};
+});

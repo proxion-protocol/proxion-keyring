@@ -200,7 +200,7 @@ def _get_app_path(app_name):
     return registry.get_app_path(app_name)
 
 def _run_docker_compose(app_name, app_path, action=["up", "-d"]):
-    """Run docker-compose with platform-specific overrides."""
+    """Run docker compose with platform-specific overrides."""
     # Discovery of local storage root
     cli_dir = os.path.dirname(os.path.abspath(__file__))
     local_storage = os.path.abspath(os.path.join(cli_dir, "../../proxion-core/storage")).replace("\\", "/")
@@ -216,8 +216,8 @@ def _provision_app(app_name, app_path):
             pw = provision_adguard()
             if pw:
                 click.echo(f"[Proxion] Identity-linked password set for {app_name}.")
-                click.echo(f"[HELP] Dashboard: http://localhost:3002")
-                click.echo(f"[HELP] Username:  admin")
+                click.echo(f"[HELP] Dashboard: http://localhost:3055")
+                click.echo(f"[HELP] Username:  proxion")
                 click.echo(f"[HELP] Password:  {pw}")
         except Exception as e:
             click.echo(f"[WARN] Failed to auto-provision {app_name}: {e}")
@@ -351,7 +351,7 @@ def suite_uninstall(app_name):
     # 1. Stop Containers
     click.echo(f"[Proxion] Stopping {app_name}...")
     try:
-        subprocess.run(["docker-compose", "down"], cwd=app_path, capture_output=True)
+        subprocess.run(["docker", "compose", "down"], cwd=app_path, capture_output=True)
     except Exception as e:
         click.echo(f"[WARN] Failed to stop containers: {e}")
 
@@ -468,7 +468,7 @@ def suite_down(target):
         if not app_path:
             return f"{app_id}: FOLDER MISSING"
         try:
-            subprocess.run(["docker-compose", "down"], cwd=app_path, capture_output=True)
+            subprocess.run(["docker", "compose", "down"], cwd=app_path, capture_output=True)
             return f"{app_id}: STOPPED"
         except Exception as e:
             return f"{app_id}: FAIL ({str(e)})"
@@ -513,7 +513,7 @@ def suite_restart(target):
         if not app_path:
             return f"{app_id}: FOLDER MISSING"
         try:
-            subprocess.run(["docker-compose", "restart"], cwd=app_path, capture_output=True)
+            subprocess.run(["docker", "compose", "restart"], cwd=app_path, capture_output=True)
             return f"{app_id}: RESTARTED"
         except Exception as e:
             return f"{app_id}: FAIL ({str(e)})"
@@ -544,10 +544,10 @@ def suite_status(detail):
         
     # Check Core Proxy
     try:
-        resp = requests.get("http://127.0.0.1:8089/pod/", timeout=2)
-        click.echo(f"Pod Proxy (8089):    ONLINE")
+        resp = requests.get("http://127.0.0.1:8889/pod/", timeout=2)
+        click.echo(f"Pod Proxy (8889):    ONLINE")
     except:
-        click.echo(f"Pod Proxy (8089):    OFFLINE")
+        click.echo(f"Pod Proxy (8889):    OFFLINE")
 
     # Check Containers
     try:
@@ -563,7 +563,38 @@ def suite_status(detail):
     except:
         click.echo("Running Containers:  ERROR (Docker not running?)")
 
-    click.echo("-" * 38)
+@cli.group()
+def dev():
+    """Workspace orchestration and DX tools."""
+    pass
+
+@dev.command(name="status")
+def dev_status():
+    """Run git status across all workspace repos."""
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    dev_script = os.path.join(repo_root, "proxion-dev.py")
+    subprocess.run(["python", dev_script, "status"], cwd=repo_root)
+
+@dev.command(name="sync")
+def dev_sync():
+    """Sync (pull) all workspace repos."""
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    dev_script = os.path.join(repo_root, "proxion-dev.py")
+    subprocess.run(["python", dev_script, "sync"], cwd=repo_root)
+
+@dev.command(name="push")
+def dev_push():
+    """Push all workspace repos."""
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    dev_script = os.path.join(repo_root, "proxion-dev.py")
+    subprocess.run(["python", dev_script, "push"], cwd=repo_root)
+
+@dev.command(name="deps")
+def dev_deps():
+    """Synchronize dependencies across all workspace repos."""
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    dev_script = os.path.join(repo_root, "proxion-dev.py")
+    subprocess.run(["python", dev_script, "deps"], cwd=repo_root)
 
 if __name__ == '__main__':
     cli()

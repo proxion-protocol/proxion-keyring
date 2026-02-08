@@ -60,6 +60,10 @@ class ResourceServer:
         self._signing_key = signing_key
         self._wg = wg_config or WireGuardConfig()
         
+    @property
+    def wg_config(self):
+        return self._wg
+        
         # Address Pool
         self._address_pool = AddressPool(
             network=self._wg.address_pool,
