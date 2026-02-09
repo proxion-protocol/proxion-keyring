@@ -29,6 +29,23 @@ def is_authorized(ip: str) -> bool:
         print(f"Gateway: Auth check failed: {e}")
     return False
 
+def get_antigravity_config():
+    """Discover Antigravity port and token via magic file."""
+    magic_path = "P:/.antigravity"
+    url = ANTIGRAVITY_URL
+    token = None
+    
+    if os.path.exists(magic_path):
+        try:
+            with open(magic_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                url = f"http://localhost:{config.get('port', 3000)}"
+                token = config.get('token')
+                print(f"Gateway: Discovered Antigravity at {url} (token found: {bool(token)})")
+        except Exception as e:
+            print(f"Gateway: Error reading magic file: {e}")
+    return url, token
+
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def proxy(path):
@@ -47,8 +64,15 @@ def proxy(path):
              "proxion_spec": "Sec 8 (Authorization Logic Failure)"
          }), 403
 
-    # Forward request to Antigravity
-    url = f"{ANTIGRAVITY_URL}/{path}"
+    # Discover current config
+    url_base, token = get_antigravity_config()
+    url = f"{url_base}/{path}"
+    
+    # Prepare headers
+    headers = {k: v for k, v in request.headers if k.lower() != 'host'}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+        
     print(f"Gateway: Forwarding {request.method} {url} for {source_ip}")
     
     try:
@@ -56,7 +80,7 @@ def proxy(path):
         resp = requests.request(
             method=request.method,
             url=url,
-            headers={k: v for k, v in request.headers if k.lower() != 'host'},
+            headers=headers,
             data=request.get_data(),
             cookies=request.cookies,
             allow_redirects=False,
@@ -65,10 +89,10 @@ def proxy(path):
         
         # Exclude hop-by-hop headers
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in resp.raw.headers.items()
-                   if name.lower() not in excluded_headers]
+        headers_to_return = [(name, value) for (name, value) in resp.raw.headers.items()
+                             if name.lower() not in excluded_headers]
 
-        return Response(resp.content, resp.status_code, headers)
+        return Response(resp.content, resp.status_code, headers_to_return)
     except Exception as e:
         return jsonify({"error": f"Failed to forward to Antigravity: {e}"}), 502
 

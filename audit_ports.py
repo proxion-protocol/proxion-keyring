@@ -7,6 +7,11 @@ import os
 import re
 from pathlib import Path
 
+import sys
+if sys.stdout.encoding != 'utf-8':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 # Load apps.json
 apps_json_path = Path(r"c:\Users\hobo\Desktop\Proxion\proxion-keyring\dashboard\src\data\apps.json")
 with open(apps_json_path, 'r', encoding='utf-8') as f:
@@ -30,8 +35,15 @@ for integration_folder in integrations_dir.iterdir():
         continue
     
     # Read docker-compose.yml
-    with open(compose_file, 'r', encoding='utf-8') as f:
-        compose_content = f.read()
+    try:
+        with open(compose_file, 'r', encoding='utf-8') as f:
+            compose_content = f.read()
+    except UnicodeDecodeError:
+        try:
+             with open(compose_file, 'r', encoding='latin-1') as f:
+                compose_content = f.read()
+        except:
+            continue
     
     # Extract port mappings (format: "HOST:CONTAINER" or HOST:CONTAINER)
     port_pattern = r'^\s*-\s*["\']?(\d+):(\d+)["\']?\s*$'
@@ -61,12 +73,11 @@ print("PORT CONFIGURATION AUDIT")
 print("=" * 80)
 
 if not mismatches:
-    print("\n✅ All port configurations match between docker-compose.yml and apps.json")
+    print("\n✅ All port configurations match")
 else:
     print(f"\n❌ Found {len(mismatches)} port mismatches:\n")
     for mismatch in mismatches:
         print(f"Integration: {mismatch['integration']}")
-        print(f"  File: {mismatch['compose_file']}")
         print(f"  Docker Compose Port: {mismatch['actual_port']}")
         print(f"  apps.json Port: {mismatch['expected_port']}")
         print()
