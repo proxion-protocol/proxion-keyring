@@ -11,9 +11,7 @@ export function FederationPolicy({ proxionToken }) {
             headers: { 'Proxion-Token': proxionToken }
         })
             .then(res => res.json())
-            .then(data => {
-                // transform object to array
-                const list = Object.values(data).filter(p => p.type === 'relationship_certificate');
+            .then(list => {
                 setPolicies(list);
                 setLoading(false);
             })
@@ -56,17 +54,22 @@ export function FederationPolicy({ proxionToken }) {
                         <p className="empty-msg">No active federation relationships.</p>
                     ) : (
                         policies.map(pol => (
-                            <div key={pol.certificate.certificate_id} className="device-card policy-card"
+                            <div key={pol.id} className="device-card policy-card"
                                 style={{ borderLeft: pol.status === 'active' ? '4px solid #4caf50' : '4px solid #f44336' }}>
                                 <div className="device-info">
-                                    <h4>{pol.subject_id}</h4>
-                                    <p style={{ fontSize: '0.8rem', color: '#888' }}>
-                                        {pol.certificate.capabilities.length} Capabilities Granted
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '0.7rem', padding: '2px 6px', background: pol.type === 'mesh_peer' ? '#3b82f6' : '#88c0d0', borderRadius: '4px', color: '#111' }}>
+                                            {pol.type === 'mesh_peer' ? 'MESH' : 'SHARE'}
+                                        </span>
+                                        <h4>{pol.label}</h4>
+                                    </div>
+                                    <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '4px' }}>
+                                        ID: {pol.id.substring(0, 16)}...
                                     </p>
-                                    <div className="caps-tags">
-                                        {pol.certificate.capabilities.map((cap, i) => (
-                                            <span key={i} className="badge">
-                                                {cap.can} @ {cap.with}
+                                    <div className="caps-tags" style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '8px' }}>
+                                        {pol.caps.map((cap, i) => (
+                                            <span key={i} className="badge" style={{ fontSize: '0.7rem', background: '#333', padding: '2px 6px', borderRadius: '4px' }}>
+                                                {cap}
                                             </span>
                                         ))}
                                     </div>
@@ -76,7 +79,7 @@ export function FederationPolicy({ proxionToken }) {
                                     {pol.status.toUpperCase()}
                                 </div>
                                 {pol.status === 'active' && (
-                                    <button className="btn-revoke" onClick={() => handleRevoke(pol.certificate.certificate_id)} title="Revoke">
+                                    <button className="btn-revoke" onClick={() => handleRevoke(pol.id)} title="Revoke">
                                         ×
                                     </button>
                                 )}

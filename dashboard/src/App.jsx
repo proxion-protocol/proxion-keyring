@@ -30,6 +30,10 @@ function App() {
   const [peers, setPeers] = useState({});
   const [isMobileView, setIsMobileView] = useState(window.location.pathname === '/mobile');
   const [proxionToken, setProxionToken] = useState(localStorage.getItem('proxion_token') || null);
+  const [authIp, setAuthIp] = useState(() => {
+    const host = window.location.hostname || '127.0.0.1';
+    return host === 'localhost' ? '127.0.0.1' : host;
+  });
   const [hsId, setHsId] = useState(null);
   const [qrUri, setQrUri] = useState(null);
   const [showWizard, setShowWizard] = useState(!localStorage.getItem('onboarding_complete'));
@@ -258,6 +262,39 @@ function App() {
     localStorage.removeItem('proxion_token');
   };
 
+  const handleLocalActivate = async () => {
+    try {
+      const resp = await fetch('http://127.0.0.1:8788/session/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webId: 'local-dashboard', accessToken: 'manual' })
+      });
+      const data = await resp.json();
+      if (!data.proxion_token) {
+        alert(data.error || 'Failed to activate local session.');
+        return;
+      }
+      setProxionToken(data.proxion_token);
+      localStorage.setItem('proxion_token', data.proxion_token);
+      localStorage.setItem('local_mode', 'true');
+      setSession({ info: { isLoggedIn: true, webId: 'https://localhost:8788/profile/card#me' }, guest: true });
+
+      // Authorize gateway session for the selected IP if provided.
+      if (authIp) {
+        await fetch('http://127.0.0.1:8788/sessions/authorize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Proxion-Token': data.proxion_token
+          },
+          body: JSON.stringify({ ip: authIp, expires_in: 3600 })
+        });
+      }
+    } catch (err) {
+      alert('Failed to activate local session: ' + err.message);
+    }
+  };
+
   const handleOpenApp = (app) => {
     setActiveApps(prev => {
       const existing = prev.find(a => a.id === app.id);
@@ -371,6 +408,21 @@ function App() {
 
           <div className="login-divider">
             <span>OR LOGIN WITH APP</span>
+          </div>
+
+          <div className="local-activate">
+            <label>Authorize Gateway IP</label>
+            <div className="input-wrapper">
+              <input
+                type="text"
+                value={authIp}
+                onChange={(e) => setAuthIp(e.target.value)}
+                placeholder="192.168.1.101"
+              />
+            </div>
+            <button className="btn-primary" onClick={handleLocalActivate}>
+              Activate Local Session
+            </button>
           </div>
 
           <div className="qr-login-box">
@@ -582,6 +634,27 @@ function App() {
                   <h1>Identity & Security</h1>
                   <p>Manage devices, keys, and capability audits.</p>
                 </header>
+
+                <div className="gateway-activate-card">
+                  <div className="gateway-activate-header">
+                    <h3>Gateway Authorization</h3>
+                    <p>Activate a local session and authorize a gateway IP for Antigravity access.</p>
+                  </div>
+                  <div className="gateway-activate-body">
+                    <div className="input-wrapper">
+                      <input
+                        type="text"
+                        value={authIp}
+                        onChange={(e) => setAuthIp(e.target.value)}
+                        placeholder="192.168.1.101"
+                      />
+                    </div>
+                    <button className="btn-primary" onClick={handleLocalActivate}>
+                      Activate + Authorize
+                    </button>
+                  </div>
+                </div>
+
                 <IdentityManager proxionToken={proxionToken} />
 
                 <div className="card-section">

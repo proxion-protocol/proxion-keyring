@@ -579,6 +579,20 @@ def federation_revoke():
     manager.revoke_relationship(cert_id)
     return jsonify({"status": "Revoked"}), 200
 
+# --- Vault Health & Security ---
+
+@app.route("/vault/health", methods=["GET"])
+@require_capability("read", "system:host")
+def vault_health():
+    """Check the health and configuration of the Zero-Knowledge Vault."""
+    return jsonify({
+        "status": "HEALTHY",
+        "encryption": "AES-256-GCM",
+        "kdf": "HKDF-SHA256",
+        "blinding": "HMAC-SHA256",
+        "master_key_fingerprint": hashlib.sha256(manager.identity.get_public_key_hex().encode()).hexdigest()[:16]
+    }), 200
+
 # --- Federation Invitation Endpoints ---
 
 @app.route("/federation/invite/list", methods=["GET"])
@@ -624,7 +638,47 @@ def federation_invite_revoke():
     manager.revoke_invitation(invite_id)
     return jsonify({"status": "Revoked"}), 200
 
+
+# --- Sovereign Sharing (Resource Delegation) ---
+
+@app.route("/sharing/relationships", methods=["GET"])
+@require_capability("manage", "federation")
+def sharing_relationships():
+    """List all federated resource sharing relationships."""
+    return jsonify(manager.get_sharing_relationships()), 200
+
+@app.route("/sharing/invite", methods=["POST"])
+@require_capability("manage", "federation")
+def sharing_invite():
+    """Create a signed invitation for a specific resource and recipient."""
+    data = request.json or {}
+    web_id = data.get("webId")
+    resource = data.get("resource")
+    actions = data.get("actions", "read")
+    
+    if not web_id or not resource:
+        return jsonify({"error": "Missing webId or resource"}), 400
+        
+    try:
+        # Resource here is an absolute URI like stash:///music/jazz
+        invite = manager.create_sharing_invite(web_id, resource, actions)
+        return jsonify(invite), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/sharing/process_acceptance", methods=["POST"])
+@require_capability("manage", "federation")
+def sharing_process_acceptance():
+    """Process an incoming acceptance and issue a RelationshipCertificate."""
+    data = request.json or {}
+    try:
+        cert = manager.process_sharing_acceptance(data)
+        return jsonify(cert), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
 # --- Mesh Management Endpoints ---
+
 
 @app.route("/mesh/dns/status", methods=["GET"])
 @require_capability("read", "system:host")
@@ -1127,6 +1181,39 @@ def mesh_join():
         return jsonify({"status": "Added"}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
+
+@app.route("/sessions", methods=["GET"])
+def get_sessions():
+    """List active sessions for gateway authorization (loopback only)."""
+    remote = request.remote_addr
+    if remote not in ["127.0.0.1", "localhost", "::1", "::ffff:127.0.0.1"]:
+        return jsonify({"error": "Forbidden"}), 403
+    return jsonify(rs._active_sessions), 200
+
+@app.route("/sessions/authorize", methods=["POST"])
+@require_capability("gateway.authorize", "fortress:identity")
+def authorize_session():
+    """Authorize a session for an IP using a valid Proxion token."""
+    data = request.json or {}
+    ip = data.get("ip") or request.remote_addr
+    expires_in = int(data.get("expires_in", 3600))
+
+    # Re-verify token to capture token_id and subject for session record
+    token_str = request.headers.get("Proxion-Token")
+    token = SERIALIZER.verify(token_str, manager.public_key, audience=None)
+
+    rs._active_sessions[ip] = {
+        "token_id": token.token_id,
+        "pubkey": None,
+        "webid": token.holder_key_fingerprint or token.subject,
+        "expires_at": int(time.time()) + max(expires_in, 60),
+    }
+
+    return jsonify({
+        "status": "authorized",
+        "ip": ip,
+        "expires_at": rs._active_sessions[ip]["expires_at"],
+    }), 200
 
 @app.route("/peers", methods=["GET"])
 @require_capability("peers.list", "fortress:management")

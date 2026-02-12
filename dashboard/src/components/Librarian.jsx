@@ -135,6 +135,41 @@ export function Librarian({ proxionToken }) {
                                     </td>
                                     <td style={{ padding: '12px 15px' }}>
                                         <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button
+                                                className="btn-secondary"
+                                                title="Share with Peer"
+                                                style={{ padding: '4px 8px', fontSize: '0.75rem', color: '#00d2ff' }}
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    const webId = prompt("Enter the WebID or Public Key of the recipient:");
+                                                    if (!webId) return;
+
+                                                    try {
+                                                        const r = await fetch("http://127.0.0.1:8788/sharing/invite", {
+                                                            method: 'POST',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'Proxion-Token': proxionToken
+                                                            },
+                                                            body: JSON.stringify({
+                                                                webId: webId,
+                                                                resource: `stash://${entry.path}`,
+                                                                actions: "read"
+                                                            })
+                                                        });
+                                                        const data = await r.json();
+                                                        if (r.ok) {
+                                                            alert(`Sharing invitation created!\nID: ${data.invitation_id}\nRecipient: ${webId}`);
+                                                        } else {
+                                                            alert(`Sharing failed: ${data.error}`);
+                                                        }
+                                                    } catch (err) {
+                                                        alert(err.message);
+                                                    }
+                                                }}
+                                            >
+                                                🤝
+                                            </button>
                                             {entry.type === 'file' && (
                                                 <button
                                                     className="btn-secondary"

@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 
 export const IdentityManager = ({ proxionToken }) => {
     const [data, setData] = useState(null);
+    const [vaultHealth, setVaultHealth] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const fetchIdentityInfo = async () => {
         try {
-            const resp = await fetch('http://127.0.0.1:8788/identity/keys', {
-                headers: { 'Proxion-Token': proxionToken }
-            });
-            const json = await resp.json();
-            setData(json);
+            const [iResp, vResp] = await Promise.all([
+                fetch('http://127.0.0.1:8788/identity/keys', { headers: { 'Proxion-Token': proxionToken } }),
+                fetch('http://127.0.0.1:8788/vault/health', { headers: { 'Proxion-Token': proxionToken } })
+            ]);
+            setData(await iResp.json());
+            setVaultHealth(await vResp.json());
         } catch (err) {
             console.error("Identity fetch failed", err);
         } finally {
@@ -48,6 +50,16 @@ export const IdentityManager = ({ proxionToken }) => {
                 <div className="metric">
                     <label>Capabilities Issued</label>
                     <strong>{data?.capabilities_issued} Active</strong>
+                </div>
+                <div className="metric">
+                    <label>ZK-Vault Status</label>
+                    <strong style={{ color: vaultHealth?.status === 'HEALTHY' ? '#a3be8c' : '#bf616a' }}>
+                        {vaultHealth?.status || 'UNKNOWN'}
+                    </strong>
+                </div>
+                <div className="metric">
+                    <label>Encryption</label>
+                    <strong>{vaultHealth?.encryption || 'OFFLINE'}</strong>
                 </div>
                 <div className="metric">
                     <label>Security Protocol</label>

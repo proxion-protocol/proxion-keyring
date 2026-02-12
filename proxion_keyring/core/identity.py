@@ -15,13 +15,17 @@ class Identity:
         self.private_key = private_key
         self.public_key = private_key.public_key()
 
-    def get_signing_key(self) -> bytes:
-        """Derive an HMAC signing key from the master identity key."""
-        raw_bytes = self.private_key.private_bytes(
+    def get_master_seed(self) -> bytes:
+        """Get the raw master seed for safe KDF derivation."""
+        return self.private_key.private_bytes(
             encoding=serialization.Encoding.Raw,
             format=serialization.PrivateFormat.Raw,
             encryption_algorithm=serialization.NoEncryption()
         )
+
+    def get_signing_key(self) -> bytes:
+        """Derive an HMAC signing key from the master identity key."""
+        raw_bytes = self.get_master_seed()
         hkdf = HKDF(
             algorithm=hashes.SHA256(),
             length=32,

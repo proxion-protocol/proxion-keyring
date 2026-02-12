@@ -59,24 +59,20 @@ class ResourceServer:
     ) -> None:
         self._signing_key = signing_key
         self._wg = wg_config or WireGuardConfig()
-        
-    @property
-    def wg_config(self):
-        return self._wg
-        
+
         # Address Pool
         self._address_pool = AddressPool(
             network=self._wg.address_pool,
             # Reserve .0 (network) and .1 (gateway)
-            reserved=2, 
+            reserved=2,
         )
-        
+
         # Active session tracking
         self._active_sessions: dict[str, dict] = {}
-        
+
         # Mutation mode (fail-closed)
         self._mutation_enabled = os.getenv("proxion-keyring_WG_MUTATION", "false").lower() == "true"
-        
+
         if self._mutation_enabled:
             # Phase 1A: Only Linux mutation supported
             self._backend = create_backend(use_mock=False)
@@ -87,6 +83,10 @@ class ResourceServer:
         else:
             # Phase 1B: Mock backend for config-generation only
             self._backend = create_backend(use_mock=True)
+
+    @property
+    def wg_config(self):
+        return self._wg
 
     def authorize(self, token: Token, ctx: RequestContext, proof: object) -> Decision:
         """Validate a token against a request context.

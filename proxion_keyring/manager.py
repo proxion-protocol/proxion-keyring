@@ -61,9 +61,39 @@ class KeyringManager:
         from .mesh import MeshCoordinator
         self.mesh = MeshCoordinator(self)
         
+        # 7. Sovereign Sharing (Phase 2)
+        from .core.vault import VaultManager
+        from .core.sharing import SharingManager
+        
+        # Instantiate Zero-Knowledge Vault
+        self.vault = VaultManager(self.identity.get_master_seed())
+        
+        # SharingManager now uses the Vault for secure persistence
+        self.sharing = SharingManager(self.identity, self.vault, self.pod_local_root)
+
         self.registry = AppRegistry()
         from .os_adapter import get_adapter
         self.adapter = get_adapter()
+
+    # --- Sharing Facade ---
+    def create_sharing_invite(self, recipient_web_id: str, resource_uri: str, actions: str = "read") -> Dict:
+        """Issue a signed FederationInvite for resource sharing."""
+        return self.sharing.create_invite(recipient_web_id, resource_uri, actions)
+
+    def process_sharing_acceptance(self, acceptance_data: Dict) -> Dict:
+        """Verify an acceptance and issue a RelationshipCertificate."""
+        return self.sharing.process_acceptance(acceptance_data)
+
+    def get_sharing_relationships(self) -> Dict:
+        """List active resource sharing relationships from the registry."""
+        registry_path = os.path.join(self.pod_local_root, "relationships.json")
+        if os.path.exists(registry_path):
+            try:
+                with open(registry_path, "r") as f:
+                    return json.load(f)
+            except:
+                return {}
+        return {}
 
     # --- Identity Facade ---
     @property
@@ -306,11 +336,52 @@ class KeyringManager:
             return {"status": "DISABLED", "dns": "DHCP"}
 
     def get_relationships(self) -> list:
-        # Placeholder for Mesh relationships
-        return []
+        """Return a unified list of mesh and resource sharing relationships."""
+        results = []
+        
+        # 1. Mesh Relationships (Mobile/Fleet)
+        for pubkey, meta in self.registered_peers.items():
+            results.append({
+                "type": "mesh_peer",
+                "id": pubkey,
+                "label": meta.get("name", "Mobile Device"),
+                "status": "active",
+                "caps": ["*"], # Mesh peers usually have root-like access to their own suite
+                "meta": meta
+            })
+            
+        # 2. Resource Sharing Relationships
+        sharing_rels = self.get_sharing_relationships()
+        for rel_id, rel in sharing_rels.items():
+            results.append({
+                "type": "resource_share",
+                "id": rel_id,
+                "label": f"Shared with {rel.get('subject')[:12]}...",
+                "status": "active", # Future: check expiration
+                "caps": [f"{c['can']} @ {c['with']}" for c in rel.get("capabilities", [])],
+                "meta": rel
+            })
+            
+        return results
 
     def revoke_relationship(self, rel_id: str):
-        """Kill a mesh trust relationship."""
-        # Placeholder for Mesh component
-        return True
+        """Kill a trust relationship (mesh or resource share)."""
+        # Try mesh peer first
+        if rel_id in self.registered_peers:
+            return self.revoke_peer(rel_id)
+            
+        # Then check resource sharing
+        registry_path = os.path.join(self.pod_local_root, "relationships.json")
+        if os.path.exists(registry_path):
+            try:
+                with open(registry_path, "r") as f:
+                    registry = json.load(f)
+                if rel_id in registry:
+                    del registry[rel_id]
+                    with open(registry_path, "w") as f:
+                        json.dump(registry, f, indent=4)
+                    return True
+            except:
+                pass
+        return False
 
