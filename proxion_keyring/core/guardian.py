@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional, Any
 from ..scout import SecurityCouncil
+from .cve_cache import CVECache
 
 class Guardian:
     """Security engine for fleet hardening and health monitoring."""
@@ -17,6 +18,11 @@ class Guardian:
         self.council = council
         self.stats_path = os.path.join(self.pod_local_root, "security_stats.json")
         self.medic_stats = self._load_medic_stats()
+        
+        # V10.4: Initialize local CVE/KEV cache
+        security_root = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(self.pod_local_root)), "security"))
+        self.cve_cache = CVECache(os.path.join(security_root, "cve_cache.db"))
+        
         self._check_readiness()
 
     def _check_readiness(self):
@@ -238,6 +244,9 @@ class Guardian:
             if not os.path.exists(compose_path):
                  raise Exception(f"No docker-compose.yml found in {app_dir} and no parked version detected.")
 
+            original_compose_content = None
+            dockerfile_hardened_path = os.path.join(app_dir, "Dockerfile.hardened")
+
             # 1. Apply Language-Specific Strategy
             from .forge_strategies import get_strategy
             strategy = get_strategy(detected_language, scan_results)
@@ -275,11 +284,13 @@ class Guardian:
 
             if extra_instructions or recs.get("recommended_base"):
                 self.log_event(f"Injecting {len(extra_instructions)} hardening layers...", "Forge", "Build", "info")
-                dockerfile_path = os.path.join(app_dir, "Dockerfile.hardened")
-                
+                # Backup original compose content before patching
+                with open(compose_path, "r", encoding="utf-8") as f:
+                    original_compose_content = f.read()
+
                 base_image = recs.get("recommended_base") or resolved_image
                 
-                with open(dockerfile_path, "w", encoding="utf-8") as f:
+                with open(dockerfile_hardened_path, "w", encoding="utf-8") as f:
                     f.write(f"FROM {base_image}\n")
                     f.write("\n# Auto-remediation by Deep Forge\n")
                     f.write("\n".join(extra_instructions) + "\n")
@@ -389,8 +400,14 @@ class Guardian:
             if post_vuln_count > vuln_count:
                 self.log_event(f"REGRESSION DETECTED: Vulnerabilities increased from {vuln_count} to {post_vuln_count}. Rolling back...", "Forge", "Rollback", "error")
                 try:
-                    # Restore backup
+                    # Restore backup tags
                     subprocess.run(["docker", "tag", f"{container_name}:backup", f"{container_name}:latest"], check=True)
+                    
+                    # V10.4: Restore configuration backup
+                    if original_compose_content:
+                        with open(compose_path, "w", encoding="utf-8") as f:
+                            f.write(original_compose_content)
+                            
                     subprocess.run(["docker", "compose", "up", "-d"], cwd=app_dir, check=True)
                     self.log_event(f"Rollback successful. Restored to previous version with {vuln_count} vulnerabilities.", "Forge", "Rollback", "warning")
                 except Exception as rollback_error:
@@ -413,6 +430,20 @@ class Guardian:
             
         except Exception as e:
             self.log_event(f"Forge FAILED for {container_name}: {str(e)}", "Forge", "Error", "error")
+            
+            # Rollback config if we patched it
+            if original_compose_content:
+                self.log_event("ROLLBACK: Restoring original docker-compose.yml after failure...", "Forge", "Rollback", "warning")
+                with open(compose_path, "w", encoding="utf-8") as f:
+                    f.write(original_compose_content)
+            
+            # Clean up temporary Dockerfile if it exists and we're not using it
+            if os.path.exists(dockerfile_hardened_path):
+                try:
+                    os.remove(dockerfile_hardened_path)
+                except:
+                    pass
+
             self._track_forge_metrics(container_name, 0, 0, "unknown", success=False)
             return False
             
@@ -421,6 +452,53 @@ class Guardian:
             if was_parked and os.path.exists(compose_path):
                 self.log_event("FORGE: Restoring parked state for integration...", "Forge", "Clean", "info")
                 os.rename(compose_path, parked_original_name)
+
+    def park_integration(self, container_name: str, app_dir: str):
+        """V10.4: Isolate an integration by parking its compose file and stopping containers."""
+        compose_path = os.path.join(app_dir, "docker-compose.yml")
+        parked_path = compose_path + ".parked"
+        
+        if os.path.exists(compose_path):
+            self.log_event(f"ZERO-DAY: Isolating {container_name} due to active exploitation!", "Guardian", "Park", "error")
+            # 1. Stop the container (Logged)
+            self.run_command_logged(["docker", "compose", "down"], cwd=app_dir, subject="Isolate")
+            # 2. Park the file
+            os.rename(compose_path, parked_path)
+            self.log_event(f"ZERO-DAY: {container_name} PARKED and isolated.", "Guardian", "Park", "success")
+            return True
+        return False
+
+    def _zero_day_monitor(self):
+        """V10.4: Proactive monitoring for known exploited vulnerabilities (KEV)."""
+        self.log_event("Zero-Day Monitor: Checking fleet for active exploits...", "Monitor", "KEV", "info")
+        
+        audit_path = os.path.join(self.pod_local_root, "latest_audit.json")
+        if not os.path.exists(audit_path):
+            return
+
+        try:
+            with open(audit_path, "r", encoding="utf-8") as f:
+                audit = json.load(f)
+            
+            for image, scan in audit.get("containers", {}).items():
+                cve_ids = [v.get("id") for v in scan.get("vulnerabilities", []) if v.get("id")]
+                exploited = self.cve_cache.batch_check_kev(cve_ids)
+                
+                if exploited:
+                    container_basename = image.split("/")[-1].split(":")[0]
+                    # V10.4 Pass 4: Critical Service Exclusion
+                    critical_services = ["tdarr", "adguard", "pialert", "proxion-keyring", "authentik"]
+                    if any(cs in container_basename.lower() for cs in critical_services):
+                        self.log_event(f"ALERT: Critical Service {container_basename} has EXPLOITED CVEs ({', '.join(exploited)}). Skipping auto-isolation.", "Monitor", "Alert", "warning")
+                        continue
+
+                    self.log_event(f"ALERT: {container_basename} contains EXPLOITED CVEs: {', '.join(exploited)}", "Monitor", "Alert", "error")
+                    
+                    integration_path = self._find_integration_for_container(container_basename, image)
+                    if integration_path:
+                        self.park_integration(container_basename, integration_path)
+        except Exception as e:
+            self.log_event(f"Zero-Day Monitor Failed: {e}", "Monitor", "Error", "error")
 
     def harden_fleet(self, audit_report_path: Optional[str] = None) -> Dict[str, Any]:
         """V9.3: Automated fleet-wide vulnerability remediation."""
@@ -719,13 +797,17 @@ class Guardian:
                 current_time = datetime.now()
                 if current_time.hour == 3 and current_time.day != last_db_update_day:
                     self.update_vuln_databases()
+                    # V10.4: Also sync local KEV cache
+                    self.cve_cache.sync_kev()
                     last_db_update_day = current_time.day
                 
-                # Run security audit every 30 cycles (30 minutes at 60s intervals)
+                # Run security audit and Zero-Day monitor every 30 cycles
                 audit_counter += 1
                 if audit_counter >= 30:
                     audit_counter = 0
                     self.run_security_audit()
+                    # V10.4: Proactive zero-day isolation
+                    self._zero_day_monitor()
                     
             except Exception as e:
                 print(f"Guardian Medic Error: {e}")

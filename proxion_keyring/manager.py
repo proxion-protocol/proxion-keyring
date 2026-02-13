@@ -4,7 +4,7 @@ from typing import Dict, Optional, Any
 from .registry import AppRegistry
 from .core import EventBus, Guardian
 from .core.identity import Identity
-from .core.tunnel import Tunnel
+from .core.tunnel import Tunnel, TunnelManager
 from .core.stash import Stash
 from .scout import SecurityCouncil
 from proxion_core import RevocationList
@@ -20,6 +20,7 @@ class KeyringManager:
         from .config import load_config
         self.config = load_config()
         self.pod_local_root = self.config.get("pod_local_root")
+        self.integrations_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../integrations"))
         print(f"Keyring: Pod Local Root aimed at: {self.pod_local_root}")
 
         self._lock = threading.Lock()
@@ -74,6 +75,28 @@ class KeyringManager:
         self.registry = AppRegistry()
         from .os_adapter import get_adapter
         self.adapter = get_adapter()
+        
+        # 8. Modular VPN Tunnels (Phase 5)
+        self.tunnels = TunnelManager(self.integrations_root, self.vault)
+
+    # --- Tunnel Facade ---
+    def tunnel_control(self, action: str, integration: str) -> bool:
+        """Control VPN tunnels for integrations."""
+        # Ensure name ends with -integration for lookup
+        i_name = integration if integration.endswith("-integration") else f"{integration}-integration"
+        
+        if action == "enable":
+            if self.tunnels.enable_tunnel(i_name):
+                # Restart the integration to apply the override
+                self.orchestrate_suite("down", integration)
+                self.orchestrate_suite("up", integration)
+                return True
+        elif action == "disable":
+            if self.tunnels.disable_tunnel(i_name):
+                self.orchestrate_suite("down", integration)
+                self.orchestrate_suite("up", integration)
+                return True
+        return False
 
     # --- Sharing Facade ---
     def create_sharing_invite(self, recipient_web_id: str, resource_uri: str, actions: str = "read") -> Dict:

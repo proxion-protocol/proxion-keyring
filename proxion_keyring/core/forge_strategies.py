@@ -12,7 +12,9 @@ def get_strategy(language: str, scanner_results: Dict[str, Any] = None):
         "python": PythonStrategy(),
         "dotnet": DotNetStrategy(),
         "nodejs": NodeStrategy(),
-        "php": PHPStrategy()
+        "php": PHPStrategy(),
+        "ruby": RubyStrategy(),
+        "java": JavaStrategy()
     }
     strategy = strategies.get(language, BaseStrategy())
     return strategy
@@ -188,4 +190,56 @@ class PHPStrategy(BaseStrategy):
             f"# Deep Forge: PHP Remediation",
             f"RUN composer update --no-interaction || true"
         ])
+        return instructions
+
+class RubyStrategy(BaseStrategy):
+    """Strategy for Ruby: bundle update + OS updates."""
+    def get_docker_instructions(self, scanner_results: Dict[str, Any], vuln_analysis: Optional[Dict[str, Any]] = None) -> List[str]:
+        """V10.2: Targeted Ruby package upgrades."""
+        instructions = self._get_os_instructions(scanner_results, vuln_analysis)
+        
+        # If no analysis, fall back to blanket upgrade
+        if not vuln_analysis:
+            instructions.extend([
+                "# Forge V3: Ruby Package Remediation",
+                "RUN bundle update --patch || true",
+                "RUN bundle clean --force || true"
+            ])
+            return instructions
+        
+        # V10.2: Targeted upgrades
+        fixable = [v for v in vuln_analysis.get("fixable", []) if v["pkg_type"] in ["gem", "bundler", "gemspec"]]
+        
+        if fixable:
+            # Ruby 'bundle update' usually handles versioning via Gemfile.lock
+            # We try to trigger a patch update for the specific packages
+            pkgs = " ".join([v['package'] for v in fixable])
+            instructions.extend([
+                "# Forge V3: Targeted Ruby Gem Upgrades",
+                f"RUN bundle update --patch {pkgs} || true",
+                "RUN bundle clean --force || true"
+            ])
+        
+        return instructions
+
+class JavaStrategy(BaseStrategy):
+    """Strategy for Java: maven versions upgrade + OS updates."""
+    def get_docker_instructions(self, scanner_results: Dict[str, Any], vuln_analysis: Optional[Dict[str, Any]] = None) -> List[str]:
+        """V10.2: Targeted Java package upgrades."""
+        instructions = self._get_os_instructions(scanner_results, vuln_analysis)
+        
+        # If no analysis, just stick to OS updates as Maven isn't always available in the image
+        if not vuln_analysis:
+            return instructions
+        
+        # V10.2: Targeted upgrades via Maven if available
+        fixable = [v for v in vuln_analysis.get("fixable", []) if v["pkg_type"] in ["maven", "jar", "pom"]]
+        
+        if fixable:
+            pkgs = ",".join([v['package'] for v in fixable])
+            instructions.extend([
+                "# Forge V3: Targeted Java Package Upgrades",
+                f"RUN (command -v mvn >/dev/null && mvn versions:use-latest-releases -Dincludes={pkgs}) || true"
+            ])
+        
         return instructions

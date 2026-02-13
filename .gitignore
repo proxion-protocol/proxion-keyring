@@ -31,6 +31,7 @@ forge_v3_test.log
 *.pem
 *.key
 invitations.json
+system_events.jsonl
 
 # Logs & Debug
 *.log
@@ -41,3 +42,4 @@ cli_output*.txt
 test_log*.txt
 demo_output*.txt
 audit_results.txt
+proxion_debug.log

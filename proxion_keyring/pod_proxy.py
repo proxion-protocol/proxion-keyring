@@ -147,18 +147,36 @@ class HybridHub(BaseResourceProvider):
                 return provider, ""
             if path.startswith(prefix + "/"):
                 return provider, path[len(prefix)+1:]
+        
+        # If no explicit mount found, and it's not the root, check if it's in primary
+        if path and hasattr(self, 'primary_provider'):
+             return self.primary_provider, path
+             
         return None, path
 
     def get_attr(self, path: str):
         if not path or path == "/" or path == ".":
             return {"st_mode": 0o40755, "st_size": 0, "st_mtime": 0}
+            
         provider, subpath = self._route(path)
-        if provider: return provider.get_attr(subpath)
+        if provider: 
+            return provider.get_attr(subpath)
+            
+        # Fallback to primary provider (Auto-Merge)
+        if hasattr(self, 'primary_provider'):
+            return self.primary_provider.get_attr(path)
+            
         return None
 
     def list_dir(self, path: str):
         if not path or path == "/" or path == ".":
-            return self._root_entries
+            entries = list(self._root_entries)
+            if hasattr(self, 'primary_provider'):
+                p_entries = self.primary_provider.list_dir("")
+                for e in p_entries:
+                    if e not in entries:
+                        entries.append(e)
+            return entries
         provider, subpath = self._route(path)
         if provider: return provider.list_dir(subpath)
         return []
@@ -297,10 +315,27 @@ class PodProxyServer:
         self.manager = manager
         self.manager.pod_proxy = self  # Register for Lens discovery
         self.manager.stash.pod_proxy = self # Inject for storage API
-        # Initialize Hybrid Hub
+        # Initialize Hybrid Hub with multi-source awareness
+        from .config import load_config
+        self.config = load_config()
         self.hub = HybridHub()
+        
+        # 1. Primary mount (legacy/internal)
         self.hub.mount("stash", LocalProvider(self.manager.pod_local_root))
+        
+        # 2. Pooled sources from config
+        self.sources = self.config.get("stash_sources", [])
+        for s in self.sources:
+            name = s.get("name").replace(" ", "_")
+            path = s.get("path")
+            if path and os.path.exists(path):
+                self.hub.mount(name, LocalProvider(path))
+        
+        # 3. Cloud mount
         self.hub.mount("cloud", RemoteProvider("Mullvad-Solid-Bunker"))
+        
+        # 4. Implement Auto-Merge Root in HybridHub
+        self._setup_automerge_root()
         
         self.app = Flask(__name__)
         self._setup_routes()
@@ -321,6 +356,15 @@ class PodProxyServer:
         self.combined_app = DispatcherMiddleware(self.app, {
             "/dav": self.dav_app
         })
+        
+    def _setup_automerge_root(self):
+        """Configure HybridHub to merge primary source into root listing."""
+        primary_name = next((s['name'].replace(" ", "_") for s in self.sources if s.get('primary')), "Default_Stash")
+        if primary_name in self.hub.mounts:
+            self.hub.primary_provider = self.hub.mounts[primary_name]
+        elif "stash" in self.hub.mounts:
+            # Fallback to legacy 'stash' mount if no primary named source found
+            self.hub.primary_provider = self.hub.mounts["stash"]
 
     def _setup_routes(self):
 

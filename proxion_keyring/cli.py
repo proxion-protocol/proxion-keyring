@@ -175,6 +175,45 @@ def suite():
     """Manage the Proxion Suite (Apps & Drives)."""
     pass
 
+@suite.group()
+def tunnel():
+    """Manage secure VPN tunnels (Gluetun sidecars)."""
+    pass
+
+@tunnel.command(name="enable")
+@click.argument("integration")
+def tunnel_enable(integration):
+    """Enable VPN tunnel for an integration."""
+    from proxion_keyring.manager import KeyringManager
+    km = KeyringManager()
+    if km.tunnel_control("enable", integration):
+        click.echo(f"TUNNEL: {integration} is now routed through VPN.")
+    else:
+        click.echo(f"ERROR: Failed to enable tunnel for {integration}.")
+
+@tunnel.command(name="disable")
+@click.argument("integration")
+def tunnel_disable(integration):
+    """Disable VPN tunnel for an integration."""
+    from proxion_keyring.manager import KeyringManager
+    km = KeyringManager()
+    if km.tunnel_control("disable", integration):
+        click.echo(f"TUNNEL: {integration} is now using standard networking.")
+    else:
+        click.echo(f"ERROR: Failed to disable tunnel for {integration}.")
+
+@tunnel.command(name="status")
+@click.argument("integration")
+def tunnel_status(integration):
+    """Check if an integration is tunneled."""
+    from proxion_keyring.manager import KeyringManager
+    km = KeyringManager()
+    i_name = integration if integration.endswith("-integration") else f"{integration}-integration"
+    if km.tunnels.is_tunneled(i_name):
+        click.echo(f"TUNNEL: {integration} is TUNNELED.")
+    else:
+        click.echo(f"TUNNEL: {integration} is DIRECT.")
+        
 @suite.command(name="ls")
 def suite_ls():
     """List all integrated applications and profiles."""
@@ -201,9 +240,10 @@ def _get_app_path(app_name):
 
 def _run_docker_compose(app_name, app_path, action=["up", "-d"]):
     """Run docker compose with platform-specific overrides."""
-    # Discovery of local storage root
-    cli_dir = os.path.dirname(os.path.abspath(__file__))
-    local_storage = os.path.abspath(os.path.join(cli_dir, "../../proxion-core/storage")).replace("\\", "/")
+    # Discovery of local storage root from config
+    from .config import load_config
+    config = load_config()
+    local_storage = config.get("pod_local_root", "C:/Users/hobo/Desktop/Proxion/stash").replace("\\", "/")
     
     cmd = adapter.get_docker_compose_cmd(app_path, local_storage, action)
     return subprocess.run(cmd, cwd=app_path, capture_output=True, text=True)

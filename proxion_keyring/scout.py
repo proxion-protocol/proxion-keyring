@@ -73,6 +73,10 @@ class SecurityCouncil:
                 results["language"] = "rust"
             elif pkg_type in ["composer"]:
                 results["language"] = "php"
+            elif pkg_type in ["gemspec", "bundler"]:
+                results["language"] = "ruby"
+            elif pkg_type in ["jar", "pom"]:
+                results["language"] = "java"
             elif pkg_type == "alpine":
                 results["language"] = results.get("language") or "alpine"
             
@@ -96,6 +100,12 @@ class SecurityCouncil:
                         break
                     if pkg.startswith("node") or pkg.startswith("npm"):
                         results["language"] = "nodejs"
+                        break
+                    if pkg.startswith("ruby") or pkg.startswith("gem"):
+                        results["language"] = "ruby"
+                        break
+                    if pkg.startswith("openjdk") or pkg.startswith("java-") or pkg.startswith("mvn"):
+                        results["language"] = "java"
                         break
 
             for vuln in result.get("Vulnerabilities", []):

@@ -110,12 +110,51 @@ class WindowsAdapter(OSAdapter):
                 if p_vols:
                     override_content += f"  {svc_name}:\n    volumes:\n"
                     for v in p_vols:
-                        local_v = v.replace("P:/", local_storage + "/")
-                        override_content += f"      - {local_v}\n"
-                        # Ensure host directory exists
-                        host_part = local_v.split(":")[0]
-                        os.makedirs(host_part.replace("/", "\\"), exist_ok=True)
+                        # Multi-Source Smart Resolution
+                        rel_v = v.replace("P:/", "").lstrip("/")
+                        resolved_local = None
+                        
+                        # Load sources to find match
+                        from .config import load_config
+                        config = load_config()
+                        sources = config.get("stash_sources", [])
+                        
+                        # Check specific source names
+                        for s in sources:
+                            s_name = s.get("name").replace(" ", "_")
+                            if rel_v == s_name or rel_v.startswith(s_name + "/"):
+                                s_path = s.get("path")
+                                sub = rel_v[len(s_name):].lstrip("/")
+                                resolved_local = os.path.join(s_path, sub).replace("\\", "/")
+                                break
+                        
+                        # Fallback to primary
+                        if not resolved_local:
+                            resolved_local = v.replace("P:/", local_storage + "/")
+                            
+                        override_content += f"      - {resolved_local}\n"
+                        # Ensure host directory exists (if it's a local Disk)
+                        if ":" in resolved_local:
+                             host_dir = os.path.dirname(resolved_local)
+                             if host_dir and not host_dir.endswith(":"):
+                                 os.makedirs(host_dir, exist_ok=True)
             
+            # Phase 5: Port Clearing for Tunneled Services
+            # If any service uses 'network_mode: service:...', we must clear its ports to avoid conflicts
+            for i in range(1, len(service_blocks), 2):
+                svc_name = service_blocks[i]
+                svc_body = service_blocks[i+1]
+                if "network_mode: \"service:" in svc_body or "network_mode: service:" in svc_body:
+                    if f"  {svc_name}:" not in override_content:
+                        override_content += f"  {svc_name}:\n"
+                    override_content += "    ports: []\n"
+
+            # Debug log for orchestration
+            with open(os.path.join(app_path, "proxion_debug.log"), "a") as f:
+                import datetime
+                f.write(f"[{datetime.datetime.now()}] Orchestrate with local_storage={local_storage}\n")
+                f.write(f"Generated Override:\n{override_content}\n")
+
             # Use 'docker compose' (v2) on Windows to avoid API version mismatches (1.25 error)
             # Preference: docker compose > docker-compose
             cmd = ["docker", "compose", "-f", "docker-compose.yml"]

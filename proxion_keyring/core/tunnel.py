@@ -1,6 +1,8 @@
 import os
 import json
 import time
+import yaml
+import logging
 from typing import Dict, Optional, Any
 from datetime import datetime, timezone
 
@@ -112,3 +114,91 @@ class Tunnel:
         timestamps.append(now)
         self.rate_limits[client_ip] = timestamps
         return True
+
+class TunnelManager:
+    """
+    Manages modular VPN sidecars (Gluetun) for Proxion integrations.
+    Ensures that containers are isolated and only communicate through the VPN.
+    """
+    
+    def __init__(self, integrations_root: str, vault_manager=None):
+        self.integrations_root = integrations_root
+        self.vault = vault_manager
+        
+    def get_vpn_config(self) -> Dict[str, Any]:
+        """Retrieve VPN credentials from the vault."""
+        if not self.vault:
+            return {
+                "VPN_SERVICE_PROVIDER": "custom",
+                "VPN_TYPE": "wireguard",
+                "WIREGUARD_PRIVATE_KEY": "FIXME_REPLACE_WITH_VAULT_KEY",
+                "WIREGUARD_ADDRESSES": "10.0.0.2/32"
+            }
+        
+        creds = self.vault.secure_load(os.path.join(os.path.dirname(self.integrations_root), "stash", "vault"), "vpn_creds")
+        if not creds:
+             logging.warning("TunnelManager: No vpn_creds found in vault.")
+             return {
+                "VPN_SERVICE_PROVIDER": "custom",
+                "VPN_TYPE": "wireguard",
+                "WIREGUARD_PRIVATE_KEY": "FIXME_REPLACE_WITH_VAULT_KEY",
+                "WIREGUARD_ADDRESSES": "10.0.0.2/32"
+            }
+        return creds
+
+    def generate_override(self, integration_name: str) -> str:
+        """Produce a docker-compose.override.yml that injects Gluetun."""
+        vpn_config = self.get_vpn_config()
+        app_name = integration_name.replace("-integration", "")
+        
+        override = {
+            "version": "3",
+            "services": {
+                "gluetun": {
+                    "image": "qmcgaw/gluetun",
+                    "container_name": f"gluetun-{integration_name}",
+                    "cap_add": ["NET_ADMIN"],
+                    "devices": ["/dev/net/tun:/dev/net/tun"],
+                    "environment": [
+                        f"VPN_SERVICE_PROVIDER={vpn_config.get('VPN_SERVICE_PROVIDER', 'mullvad')}",
+                        f"VPN_TYPE={vpn_config.get('VPN_TYPE', 'wireguard')}",
+                        f"WIREGUARD_PRIVATE_KEY={vpn_config.get('WIREGUARD_PRIVATE_KEY', '')}",
+                        f"WIREGUARD_ADDRESSES={vpn_config.get('WIREGUARD_ADDRESSES', '')}",
+                        "HTTPPROXY=on",
+                        "SHADOWSOCKS=on",
+                    ],
+                    "restart": "unless-stopped"
+                },
+                app_name: {
+                    "network_mode": "service:gluetun",
+                    "depends_on": ["gluetun"]
+                }
+            }
+        }
+        return yaml.dump(override, sort_keys=False)
+
+    def enable_tunnel(self, integration_name: str) -> bool:
+        """Apply the override to an integration."""
+        target_dir = os.path.join(self.integrations_root, integration_name)
+        if not os.path.exists(target_dir):
+            return False
+            
+        override_content = self.generate_override(integration_name)
+        override_path = os.path.join(target_dir, "docker-compose.override.yml")
+        
+        with open(override_path, "w") as f:
+            f.write(override_content)
+        return True
+
+    def disable_tunnel(self, integration_name: str) -> bool:
+        """Remove the override to restore standard networking."""
+        target_dir = os.path.join(self.integrations_root, integration_name)
+        override_path = os.path.join(target_dir, "docker-compose.override.yml")
+        if os.path.exists(override_path):
+            os.remove(override_path)
+        return True
+
+    def is_tunneled(self, integration_name: str) -> bool:
+        """Check if an integration is currently configured for VPN."""
+        target_dir = os.path.join(self.integrations_root, integration_name)
+        return os.path.exists(os.path.join(target_dir, "docker-compose.override.yml"))
