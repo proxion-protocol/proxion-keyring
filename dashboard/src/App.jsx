@@ -19,7 +19,7 @@ import { HealthGrid } from './components/HealthGrid';
 import { Librarian } from './components/Librarian';
 import { AuditFeed } from './components/AuditFeed';
 import { Guardian } from './components/Guardian';
-import SeedboxPanel from './components/SeedboxPanel';
+import { SeedboxPanel } from './components/SeedboxPanel';
 import './App.css';
 
 function App() {
