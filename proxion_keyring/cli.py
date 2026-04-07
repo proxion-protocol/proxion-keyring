@@ -1,6 +1,7 @@
 import click
 import os
 import subprocess
+from pathlib import Path
 import time
 import json
 import requests
@@ -243,7 +244,8 @@ def _run_docker_compose(app_name, app_path, action=["up", "-d"]):
     # Discovery of local storage root from config
     from .config import load_config
     config = load_config()
-    local_storage = config.get("pod_local_root", "C:/Users/hobo/Desktop/Proxion/stash").replace("\\", "/")
+    _default_stash = os.environ.get("STASH_ROOT", str(Path(__file__).parent.parent.parent / "stash"))
+    local_storage = config.get("pod_local_root", _default_stash).replace("\\", "/")
     
     cmd = adapter.get_docker_compose_cmd(app_path, local_storage, action)
     return subprocess.run(cmd, cwd=app_path, capture_output=True, text=True)
