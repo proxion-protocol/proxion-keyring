@@ -7,6 +7,22 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- Load .env from repo root (main process only) ---
+const _repoRoot = path.resolve(__dirname, '../../..');
+const _envPath = path.join(_repoRoot, '.env');
+try {
+    const _envLines = fs.readFileSync(_envPath, 'utf8').split('\n');
+    for (const line of _envLines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eq = trimmed.indexOf('=');
+        if (eq === -1) continue;
+        const key = trimmed.slice(0, eq).trim();
+        const val = trimmed.slice(eq + 1).trim();
+        if (key && !(key in process.env)) process.env[key] = val;
+    }
+} catch (_) { /* .env absent — rely on system env */ }
+
 // --- Configuration ---
 const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -224,9 +240,25 @@ const createTray = () => {
 
 // --- Lifecycle ---
 // Register IPC handlers IMMEDIATELEY
+ipcMain.handle('diag-ping', () => {
+    const root = path.resolve(__dirname, '../../').replace(/\\/g, '/');
+    return { status: 'pong', root };
+});
+
 ipcMain.handle('get-repo-root', () => {
     const root = path.resolve(__dirname, '../../');
     return root.replace(/\\/g, '/');
+});
+
+ipcMain.handle('launch-external-app', async (event, { appId, path: appPath }) => {
+    if (appPath) shell.openPath(appPath);
+    return { success: true };
+});
+
+ipcMain.handle('get-bridge-url', () => {
+    const bridgeIp = process.env.BRIDGE_IP || '172.16.0.42';
+    const port = process.env.TRANSMISSION_PORT || '9091';
+    return `http://${bridgeIp}:${port}/transmission/web/`;
 });
 
 ipcMain.handle('select-directory', async () => {
