@@ -31,7 +31,13 @@ forge_v3_test.log
 *.pem
 *.key
 invitations.json
+invite.json
+proxion_config.json
 system_events.jsonl
+
+# Generated / local-only directories
+snapshots/
+proxion_core_SHADOW_BACKUP/
 
 # Logs & Debug
 *.log
