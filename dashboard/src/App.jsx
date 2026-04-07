@@ -19,6 +19,7 @@ import { HealthGrid } from './components/HealthGrid';
 import { Librarian } from './components/Librarian';
 import { AuditFeed } from './components/AuditFeed';
 import { Guardian } from './components/Guardian';
+import SeedboxPanel from './components/SeedboxPanel';
 import './App.css';
 
 function App() {
@@ -482,6 +483,9 @@ function App() {
                 <button className={activeTab === 'fleet' ? 'active' : ''} onClick={() => setActiveTab('fleet')}>
                   <span className="icon">📱</span> Fleet
                 </button>
+                <button className={activeTab === 'seedbox' ? 'active' : ''} onClick={() => setActiveTab('seedbox')}>
+                  <span className="icon">🌱</span> Seedbox
+                </button>
 
               </div>
 
@@ -684,6 +688,16 @@ function App() {
                 </div>
 
                 <FederationPolicy proxionToken={proxionToken} />
+              </div>
+            )}
+
+            {activeTab === 'seedbox' && (
+              <div className="view-container" style={{ height: '100%' }}>
+                <header className="view-header">
+                  <h1>Seedbox</h1>
+                  <p>Ingest daemon and Transmission pipeline status.</p>
+                </header>
+                <SeedboxPanel proxionToken={proxionToken} />
               </div>
             )}
 
